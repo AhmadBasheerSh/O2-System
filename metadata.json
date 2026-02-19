@@ -1,0 +1,7 @@
+{
+  "name": "RestoMaster POS",
+  "description": "A comprehensive, high-performance restaurant POS system for cashiers, featuring order management, table tracking, billing, shift handling, and reporting with a modern RTL-ready interface.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
