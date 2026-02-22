@@ -23,8 +23,8 @@ export const Login: React.FC = () => {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 text-slate-100" dir="rtl">
         <div className="max-w-7xl w-full">
           <div className="text-center mb-16">
-            <div className="w-24 h-24 bg-red-600 rounded-[2.5rem] flex items-center justify-center text-white text-5xl font-black mx-auto mb-8 shadow-2xl rotate-3 shadow-red-600/20">R</div>
-            <h1 className="text-6xl font-black text-white tracking-tighter">RestoMaster <span className="text-red-600">v3.0</span></h1>
+            <div className="w-24 h-24 bg-red-600 rounded-[2.5rem] flex items-center justify-center text-white text-5xl font-black mx-auto mb-8 shadow-2xl rotate-3 shadow-red-600/20">O2</div>
+            <h1 className="text-6xl font-black text-white tracking-tighter"><span className="text-red-600">02 </span>Gaza</h1>
             <p className="text-slate-500 mt-4 text-xl font-bold">المستقبل المظلم لإدارة المطاعم والخدمات الفندقية</p>
           </div>
           

@@ -1,22 +1,26 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../store';
-import { OrderStatus, Order } from '../types';
-import { Clock, CheckCircle2, XCircle, MoreVertical, Edit3, Eye, Search } from 'lucide-react';
+import { OrderStatus, Order, PaymentMethod } from '../types';
+import { 
+  Clock, CheckCircle2, XCircle, Edit3, Eye, Search, 
+  User, Phone, CreditCard, Wallet, Banknote, FileText, 
+  PackageOpen, ClipboardList, Hash
+} from 'lucide-react';
 
 export const OrdersView: React.FC = () => {
-  const { activeOrders, voidOrder, completeOrder, loadOrderToPOS } = useApp();
+  const { activeOrders, voidOrder, completeOrder, loadOrderToPOS, currentShift } = useApp();
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'CLOSED'>('ACTIVE');
   const [searchTerm, setSearchTerm] = useState('');
 
   const getStatusColor = (status: OrderStatus) => {
     switch(status) {
-      case OrderStatus.PENDING: return 'bg-yellow-50 text-yellow-600 border-yellow-100';
-      case OrderStatus.PREPARING: return 'bg-blue-50 text-blue-600 border-blue-100';
-      case OrderStatus.READY: return 'bg-orange-50 text-orange-600 border-orange-100';
-      case OrderStatus.DELIVERED: return 'bg-green-50 text-green-600 border-green-100';
-      case OrderStatus.CANCELED: return 'bg-red-50 text-red-600 border-red-100';
-      default: return 'bg-slate-50 text-slate-600 border-slate-100';
+      case OrderStatus.PENDING: return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      case OrderStatus.PREPARING: return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case OrderStatus.READY: return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
+      case OrderStatus.DELIVERED: return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+      case OrderStatus.CANCELED: return 'bg-red-500/10 text-red-500 border-red-500/20';
+      default: return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
     }
   };
 
@@ -31,39 +35,65 @@ export const OrdersView: React.FC = () => {
     }
   };
 
+  const getPaymentIcon = (method?: PaymentMethod) => {
+    switch(method) {
+      case PaymentMethod.CASH: return <Banknote size={14} />;
+      case PaymentMethod.CREDIT_CARD: return <CreditCard size={14} />;
+      case PaymentMethod.WALLET: return <Wallet size={14} />;
+      default: return <Banknote size={14} />;
+    }
+  };
+
+  const getPaymentLabel = (method?: PaymentMethod) => {
+    switch(method) {
+      case PaymentMethod.CASH: return 'كاش';
+      case PaymentMethod.CREDIT_CARD: return 'بطاقة';
+      case PaymentMethod.WALLET: return 'تطبيق';
+      default: return 'كاش';
+    }
+  };
+
   const filteredOrders = activeOrders.filter(order => {
+    // Filter by shift if shift is open
+    const orderDate = new Date(order.createdAt);
+    const isInShift = currentShift ? orderDate >= new Date(currentShift.startTime) : true;
+    
+    if (!isInShift) return false;
+
     const matchesTab = activeTab === 'ACTIVE' 
       ? order.status !== OrderStatus.DELIVERED && order.status !== OrderStatus.CANCELED
       : order.status === OrderStatus.DELIVERED || order.status === OrderStatus.CANCELED;
-    const matchesSearch = order.orderNumber.includes(searchTerm) || order.tableId?.includes(searchTerm);
+    
+    const matchesSearch = order.orderNumber.includes(searchTerm) || 
+                         (order.customerName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (order.customerPhone?.includes(searchTerm));
+    
     return matchesTab && matchesSearch;
   });
 
   const handleEditOrder = (order: Order) => {
-    // Check if editable
     if (order.status === OrderStatus.DELIVERED) {
       alert('عذراً، الطلبات المسلمة لا يمكن تعديلها.');
       return;
     }
     loadOrderToPOS(order);
-    // Note: Parent component should ideally handle view switching, 
-    // but in this setup, the loadOrderToPOS updates the global state.
-    // The user will need to navigate back to POS or we can trigger it if needed.
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-3xl font-black text-slate-800 tracking-tight">إدارة الطلبات</h2>
-          <p className="text-slate-500 font-bold">تابع الطلبات النشطة وراجع سجل المبيعات</p>
+    <div className="space-y-8 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 bg-slate-950 h-full overflow-y-auto rounded-[3rem] custom-scrollbar">
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+        <div className="space-y-1">
+          <h2 className="text-4xl font-black text-white tracking-tight">إدارة الطلبات</h2>
+          <p className="text-slate-500 font-bold text-sm">
+            {currentShift ? `عرض طلبات الشفت الحالي (بدأ ${new Date(currentShift.startTime).toLocaleTimeString('ar-EG')})` : 'تابع الطلبات النشطة وراجع سجل المبيعات'}
+          </p>
         </div>
-        <div className="relative w-full md:w-72">
-          <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+        <div className="relative w-full lg:w-96">
+          <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
           <input 
             type="text" 
-            placeholder="بحث برقم الطلب أو الطاولة..."
-            className="w-full pr-12 pl-4 py-3 bg-white border border-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-orange-500 text-sm font-bold shadow-sm"
+            placeholder="بحث برقم الطلب، اسم الزبون أو الجوال..."
+            className="w-full pr-12 pl-4 py-4 bg-slate-900 border border-white/5 rounded-[2rem] outline-none focus:ring-2 focus:ring-red-600 text-sm font-bold text-white shadow-2xl placeholder:text-slate-600"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -71,75 +101,137 @@ export const OrdersView: React.FC = () => {
       </header>
 
       {/* Tabs */}
-      <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-100 w-fit">
+      <div className="flex bg-slate-900 p-1.5 rounded-[2rem] border border-white/5 w-fit shadow-2xl">
         <button 
           onClick={() => setActiveTab('ACTIVE')}
-          className={`px-8 py-3 rounded-xl font-black text-sm transition-all ${activeTab === 'ACTIVE' ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-500'}`}
+          className={`flex items-center gap-2 px-10 py-3.5 rounded-[1.5rem] font-black text-sm transition-all ${activeTab === 'ACTIVE' ? 'bg-red-600 text-white shadow-xl shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
         >
-          الطلبات النشطة ({activeOrders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED).length})
+          <ClipboardList size={18} />
+          الطلبات النشطة
         </button>
         <button 
           onClick={() => setActiveTab('CLOSED')}
-          className={`px-8 py-3 rounded-xl font-black text-sm transition-all ${activeTab === 'CLOSED' ? 'bg-slate-800 text-white shadow-lg' : 'text-slate-500'}`}
+          className={`flex items-center gap-2 px-10 py-3.5 rounded-[1.5rem] font-black text-sm transition-all ${activeTab === 'CLOSED' ? 'bg-slate-800 text-white shadow-xl' : 'text-slate-500 hover:text-slate-300'}`}
         >
-          الطلبات المغلقة ({activeOrders.filter(o => o.status === OrderStatus.DELIVERED || o.status === OrderStatus.CANCELED).length})
+          <CheckCircle2 size={18} />
+          الطلبات المغلقة
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredOrders.map(order => (
-          <div key={order.id} className="bg-white rounded-[2.5rem] border border-slate-50 shadow-sm hover:shadow-xl transition-all group overflow-hidden flex flex-col">
-            <div className="p-8 flex-1">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">رقم الطلب</span>
-                  <p className="text-xl font-black text-slate-800">#{order.orderNumber.split('-').pop()}</p>
+          <div key={order.id} className="bg-slate-900 rounded-[2.5rem] border border-white/5 shadow-2xl hover:border-red-600/30 transition-all group overflow-hidden flex flex-col">
+            <div className="p-8 flex-1 space-y-6">
+              <div className="flex justify-between items-start">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-500">
+                    <Hash size={12} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">رقم الطلب</span>
+                  </div>
+                  <p className="text-2xl font-black text-white">#{order.orderNumber.split('-').pop()}</p>
                 </div>
                 <div className={`px-4 py-2 rounded-2xl border text-[10px] font-black flex items-center gap-2 ${getStatusColor(order.status)}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${getStatusColor(order.status).split(' ')[1].replace('text-', 'bg-')}`} />
                   {getStatusLabel(order.status)}
                 </div>
               </div>
 
-              <div className="space-y-3 mb-8">
-                {order.items.map(item => (
-                  <div key={item.uniqueId} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl">
-                    <span className="text-xs font-bold text-slate-700">{item.name} <span className="text-orange-500">×{item.quantity}</span></span>
-                    <span className="text-xs font-black">{(item.price * item.quantity).toFixed(2)} ₪</span>
-                  </div>
-                ))}
+              {/* Items List */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-slate-500 mb-2">
+                  <ClipboardList size={12} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">الأصناف</span>
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                  {order.items.map(item => (
+                    <div key={item.uniqueId} className="flex justify-between items-center bg-slate-800/50 p-3 rounded-2xl border border-white/5">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-slate-200">{item.name}</span>
+                        <span className="text-[10px] font-bold text-slate-500">الكمية: {item.quantity}</span>
+                      </div>
+                      <span className="text-xs font-black text-white">{(item.price * item.quantity).toFixed(2)} ₪</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <div className="flex justify-between items-center pt-6 border-t border-slate-50">
-                <div className="flex items-center gap-2 text-slate-400">
-                  <Clock size={14} />
-                  <span className="text-xs font-bold">{new Date(order.createdAt).toLocaleTimeString('ar-EG')}</span>
+              {/* Order Info Grid */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                <div className="space-y-1">
+                   <div className="flex items-center gap-1.5 text-slate-500">
+                    <Clock size={12} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">الوقت</span>
+                  </div>
+                  <p className="text-xs font-black text-slate-300">{new Date(order.createdAt).toLocaleTimeString('ar-EG')}</p>
                 </div>
-                <div className="text-right">
-                   <p className="text-[10px] font-black text-slate-400 uppercase">الإجمالي</p>
-                   <p className="text-2xl font-black text-orange-600">{order.total.toFixed(2)} ₪</p>
+                <div className="space-y-1">
+                   <div className="flex items-center gap-1.5 text-slate-500">
+                    {getPaymentIcon(order.paymentMethod)}
+                    <span className="text-[10px] font-black uppercase tracking-widest">الدفع</span>
+                  </div>
+                  <p className="text-xs font-black text-slate-300">{getPaymentLabel(order.paymentMethod)}</p>
                 </div>
+              </div>
+
+              {/* Customer Info (Only for Closed Orders or if available) */}
+              {(activeTab === 'CLOSED' || order.customerName) && (
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      <User size={12} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">الزبون</span>
+                    </div>
+                    <p className="text-xs font-black text-slate-300 truncate">{order.customerName || 'غير محدد'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-slate-500">
+                      <Phone size={12} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">الجوال</span>
+                    </div>
+                    <p className="text-xs font-black text-slate-300">{order.customerPhone || '---'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Note */}
+              {order.note && (
+                <div className="pt-4 border-t border-white/5">
+                   <div className="flex items-center gap-1.5 text-slate-500 mb-1">
+                    <FileText size={12} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">الملاحظة</span>
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-400 bg-slate-800/30 p-3 rounded-xl border border-white/5 italic">
+                    "{order.note}"
+                  </p>
+                </div>
+              )}
+
+              {/* Total */}
+              <div className="flex justify-between items-center pt-6 border-t border-white/5">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">الإجمالي النهائي</span>
+                <p className="text-3xl font-black text-red-600">{order.total.toFixed(2)} <span className="text-sm">₪</span></p>
               </div>
             </div>
 
-            <div className="p-6 bg-slate-50/50 border-t border-slate-50 flex gap-3">
+            <div className="p-6 bg-slate-800/30 border-t border-white/5 flex gap-3">
                {activeTab === 'ACTIVE' ? (
                  <>
                     <button 
                       onClick={() => handleEditOrder(order)}
-                      className="flex-1 bg-white border border-slate-200 text-slate-700 py-3 rounded-2xl font-black text-xs hover:bg-slate-100 flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95"
+                      className="flex-1 bg-slate-800 border border-white/5 text-slate-300 py-3.5 rounded-2xl font-black text-xs hover:bg-slate-700 flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
-                      <Edit3 size={14} /> تعديل الطلب
+                      <Edit3 size={16} /> تعديل
                     </button>
                     <button 
-                      onClick={() => completeOrder(order.id, { method: 'CASH' })}
-                      className="flex-1 bg-orange-500 text-white py-3 rounded-2xl font-black text-xs hover:bg-orange-600 flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                      onClick={() => completeOrder(order.id, { method: order.paymentMethod || PaymentMethod.CASH })}
+                      className="flex-1 bg-red-600 text-white py-3.5 rounded-2xl font-black text-xs hover:bg-red-700 flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-900/20 active:scale-95"
                     >
-                      <CheckCircle2 size={14} /> إغلاق الفاتورة
+                      <CheckCircle2 size={16} /> إغلاق
                     </button>
                  </>
                ) : (
-                 <button className="flex-1 bg-white border border-slate-200 text-slate-700 py-3 rounded-2xl font-black text-xs hover:bg-slate-100 flex items-center justify-center gap-2 transition-all shadow-sm">
-                   <Eye size={14} /> عرض التفاصيل
+                 <button className="flex-1 bg-slate-800 border border-white/5 text-slate-300 py-3.5 rounded-2xl font-black text-xs hover:bg-slate-700 flex items-center justify-center gap-2 transition-all active:scale-95">
+                   <Eye size={16} /> عرض التفاصيل الكاملة
                  </button>
                )}
             </div>
@@ -147,14 +239,23 @@ export const OrdersView: React.FC = () => {
         ))}
 
         {filteredOrders.length === 0 && (
-          <div className="col-span-full py-20 text-center space-y-4 opacity-50">
-            <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto">
-              <Eye size={48} className="text-slate-300" />
+          <div className="col-span-full py-32 flex flex-col items-center justify-center space-y-6">
+            <div className="relative">
+              <div className="absolute inset-0 bg-red-600 blur-[60px] opacity-20 rounded-full" />
+              <div className="relative w-32 h-32 bg-slate-900 rounded-full flex items-center justify-center border border-white/5 shadow-2xl">
+                <PackageOpen size={64} className="text-slate-700" strokeWidth={1} />
+              </div>
             </div>
-            <p className="font-bold text-slate-400">لا توجد طلبات في هذا القسم حالياً</p>
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-black text-white">لا توجد طلبات حالياً</h3>
+              <p className="text-slate-500 font-bold text-sm max-w-xs mx-auto">
+                {searchTerm ? 'لم نجد أي نتائج تطابق بحثك، جرب كلمات أخرى' : 'يبدو أن قائمة الطلبات فارغة في هذا القسم'}
+              </p>
+            </div>
           </div>
         )}
       </div>
     </div>
   );
 };
+

@@ -56,7 +56,7 @@ const Main: React.FC = () => {
     }
 
     switch(activeView) {
-      case 'pos': return <POS />;
+      case 'pos': return <POS onViewTables={() => setActiveView('tables')} />;
       case 'tables': return <TablesView onSelect={() => setActiveView('pos')} />;
       case 'orders': return <OrdersView />;
       case 'shift': return <ShiftView />;

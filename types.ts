@@ -87,6 +87,9 @@ export interface Order {
   deliveryFee?: number;
   discount: number;
   total: number;
+  customerName?: string;
+  customerPhone?: string;
+  note?: string;
   paymentMethod?: PaymentMethod;
   timeline: OrderTimeline[];
   deliveryInfo?: {
@@ -163,11 +166,24 @@ export interface User {
   commissionRate?: number;
 }
 
+export enum TableStatus {
+  AVAILABLE = 'AVAILABLE',
+  OCCUPIED = 'OCCUPIED',
+  PAYMENT_PENDING = 'PAYMENT_PENDING',
+  RESERVED = 'RESERVED',
+  CLEANING = 'CLEANING'
+}
+
 export interface Table {
   id: string;
   number: number;
-  status: 'EMPTY' | 'OCCUPIED' | 'RESERVED';
+  status: TableStatus;
   capacity: number;
+  currentOrderId?: string;
+  seatedAt?: Date;
+  reservationName?: string;
+  reservationTime?: string;
+  position: { x: number; y: number };
 }
 
 export interface Shift {

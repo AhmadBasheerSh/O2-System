@@ -2,7 +2,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   Order, OrderType, OrderStatus, MenuItem, OrderItem, User, PaymentMethod, 
-  Transaction, SavedCard, Table, Shift, Branch, Department, JobTitle, JobType, Employee 
+  Transaction, SavedCard, Table, Shift, Branch, Department, JobTitle, JobType, Employee,
+  TableStatus
 } from './types';
 import { TABLES } from './constants';
 
@@ -40,7 +41,8 @@ interface AppContextType {
   addToCart: (item: MenuItem, customization?: any) => void;
   removeFromCart: (uniqueId: string) => void;
   updateCartQuantity: (uniqueId: string, delta: number) => void;
-  submitOrder: (status: OrderStatus, paymentMethod?: PaymentMethod, discount?: number) => void;
+  updateCartItem: (uniqueId: string, updates: Partial<OrderItem>) => void;
+  submitOrder: (status: OrderStatus, paymentMethod?: PaymentMethod, discount?: number, customerDetails?: { name: string, phone: string, note?: string }) => void;
   depositToWallet: (amount: number, bonus?: number) => void;
   refundToWallet: (orderId: string) => void;
   saveNewCard: (card: Omit<SavedCard, 'id'>) => void;
@@ -51,6 +53,9 @@ interface AppContextType {
   tables: Table[];
   selectedTable: Table | null;
   setSelectedTable: (table: Table | null) => void;
+  updateTableStatus: (tableId: string, status: TableStatus, extra?: Partial<Table>) => void;
+  transferTable: (fromId: string, toId: string) => void;
+  mergeTables: (tableIds: string[]) => void;
   editingOrderId: string | null;
   clearCart: () => void;
   voidOrder: (orderId: string) => void;
@@ -64,7 +69,41 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeOrders, setActiveOrders] = useState<Order[]>([]);
+  const [activeOrders, setActiveOrders] = useState<Order[]>([
+    {
+      id: 'o-1',
+      orderNumber: 'ORD-1001',
+      type: OrderType.DINE_IN,
+      status: OrderStatus.IN_PROGRESS,
+      items: [
+        { itemId: '1', uniqueId: 'ui-1', name: 'برجر كلاسيك', quantity: 2, price: 25, basePrice: 25 },
+        { itemId: '3', uniqueId: 'ui-2', name: 'عصير برتقال', quantity: 2, price: 12, basePrice: 12 }
+      ],
+      tableId: 't-1',
+      createdAt: new Date(Date.now() - 30 * 60000),
+      subtotal: 74,
+      tax: 0,
+      discount: 0,
+      total: 74,
+      timeline: [{ status: OrderStatus.IN_PROGRESS, time: new Date() }]
+    },
+    {
+      id: 'o-2',
+      orderNumber: 'ORD-1002',
+      type: OrderType.DINE_IN,
+      status: OrderStatus.READY,
+      items: [
+        { itemId: '7', uniqueId: 'ui-3', name: 'مشاوي مشكلة', quantity: 1, price: 85, basePrice: 85 }
+      ],
+      tableId: 't-2',
+      createdAt: new Date(Date.now() - 45 * 60000),
+      subtotal: 85,
+      tax: 0,
+      discount: 0,
+      total: 85,
+      timeline: [{ status: OrderStatus.READY, time: new Date() }]
+    }
+  ]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<'CASHIER' | 'CUSTOMER' | 'WAITER' | 'ADMIN' | 'BRANCH_MANAGER' | null>(null);
   const [currentCart, setCurrentCart] = useState<OrderItem[]>([]);
@@ -156,30 +195,111 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.REFUNDED } : o));
   };
 
-  const voidOrder = (orderId: string) => setActiveOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.CANCELED } : o));
-  const completeOrder = (orderId: string, payment: { method: string | PaymentMethod }) => setActiveOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.DELIVERED, paymentMethod: payment.method as PaymentMethod } : o));
-  const loadOrderToPOS = (order: Order) => { setCurrentCart(order.items); setCartOrderType(order.type); setEditingOrderId(order.id); };
-  const clearCart = () => { setCurrentCart([]); setEditingOrderId(null); };
-  const reorder = (orderId: string) => {
-    const order = activeOrders.find(o => o.id === orderId);
-    if (order) { setCurrentCart(order.items.map(i => ({ ...i, uniqueId: Math.random().toString(36).substr(2, 9) }))); setCartOrderType(order.type); setEditingOrderId(null); }
+  const updateTableStatus = (tableId: string, status: TableStatus, extra?: Partial<Table>) => {
+    setTables(prev => prev.map(t => t.id === tableId ? { ...t, status, ...extra } : t));
   };
 
-  const submitOrder = (status: OrderStatus, paymentMethod?: PaymentMethod, discount: number = 0) => {
+  const transferTable = (fromId: string, toId: string) => {
+    const fromTable = tables.find(t => t.id === fromId);
+    const toTable = tables.find(t => t.id === toId);
+    if (!fromTable || !toTable || fromTable.status !== TableStatus.OCCUPIED) return;
+
+    const order = activeOrders.find(o => o.id === fromTable.currentOrderId);
+    if (!order) return;
+
+    // Move order to new table
+    setActiveOrders(prev => prev.map(o => o.id === order.id ? { ...o, tableId: toId } : o));
+    
+    // Update tables
+    setTables(prev => prev.map(t => {
+      if (t.id === fromId) return { ...t, status: TableStatus.CLEANING, currentOrderId: undefined, seatedAt: undefined };
+      if (t.id === toId) return { ...t, status: TableStatus.OCCUPIED, currentOrderId: order.id, seatedAt: fromTable.seatedAt };
+      return t;
+    }));
+  };
+
+  const mergeTables = (tableIds: string[]) => {
+    if (tableIds.length < 2) return;
+    const targetTableId = tableIds[0];
+    const otherTableIds = tableIds.slice(1);
+
+    const targetTable = tables.find(t => t.id === targetTableId);
+    if (!targetTable) return;
+
+    const targetOrder = activeOrders.find(o => o.id === targetTable.currentOrderId);
+    if (!targetOrder) return;
+
+    let mergedItems = [...targetOrder.items];
+
+    otherTableIds.forEach(id => {
+      const table = tables.find(t => t.id === id);
+      if (table && table.currentOrderId) {
+        const order = activeOrders.find(o => o.id === table.currentOrderId);
+        if (order) {
+          mergedItems = [...mergedItems, ...order.items];
+          // Cancel the other order
+          setActiveOrders(prev => prev.filter(o => o.id !== order.id));
+        }
+      }
+    });
+
+    // Update target order
+    const subtotal = mergedItems.reduce((s, i) => s + (i.price * i.quantity), 0);
+    setActiveOrders(prev => prev.map(o => o.id === targetOrder.id ? { ...o, items: mergedItems, subtotal, total: subtotal - o.discount } : o));
+
+    // Update tables
+    setTables(prev => prev.map(t => {
+      if (otherTableIds.includes(t.id)) return { ...t, status: TableStatus.CLEANING, currentOrderId: undefined, seatedAt: undefined };
+      return t;
+    }));
+  };
+
+  const submitOrder = (status: OrderStatus, paymentMethod?: PaymentMethod, discount: number = 0, customerDetails?: { name: string, phone: string, note?: string }) => {
     if (!currentUser || currentCart.length === 0) return;
     const subtotal = currentCart.reduce((s, i) => s + (i.price * i.quantity), 0);
-    const total = (subtotal * 1.15) + (cartOrderType === OrderType.DELIVERY ? 10 : 0) - discount;
+    const total = subtotal - discount;
     
     if (paymentMethod === PaymentMethod.WALLET && currentUser.balance < total) return alert('الرصيد غير كافٍ');
     
+    const orderId = editingOrderId || Math.random().toString(36).substr(2, 9);
     const newOrder: Order = {
-      id: editingOrderId || Math.random().toString(36).substr(2, 9),
+      id: orderId,
       orderNumber: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-      type: cartOrderType, status, items: [...currentCart], customerId: currentUser.id, tableId: selectedTable?.id, branchId: currentUser.branchId || 'b1', createdAt: new Date(), subtotal, tax: subtotal * 0.15, discount, total, paymentMethod, timeline: [{ status, time: new Date() }]
+      type: cartOrderType, status, items: [...currentCart], customerId: currentUser.id, tableId: selectedTable?.id, branchId: currentUser.branchId || 'b1', createdAt: new Date(), subtotal, tax: 0, discount, total, paymentMethod, 
+      customerName: customerDetails?.name,
+      customerPhone: customerDetails?.phone,
+      note: customerDetails?.note,
+      timeline: [{ status, time: new Date() }]
     };
-    if (editingOrderId) setActiveOrders(p => p.map(o => o.id === editingOrderId ? newOrder : o));
-    else setActiveOrders(p => [newOrder, ...p]);
+
+    if (editingOrderId) {
+      setActiveOrders(p => p.map(o => o.id === editingOrderId ? newOrder : o));
+    } else {
+      setActiveOrders(p => [newOrder, ...p]);
+    }
+
+    // Update table status if it's a dine-in order
+    if (selectedTable) {
+      updateTableStatus(selectedTable.id, TableStatus.OCCUPIED, { 
+        currentOrderId: orderId, 
+        seatedAt: selectedTable.seatedAt || new Date() 
+      });
+    }
+
     setCurrentCart([]); setEditingOrderId(null); setSelectedTable(null);
+  };
+
+  const completeOrder = (orderId: string, payment: { method: string | PaymentMethod }) => {
+    setActiveOrders(prev => prev.map(o => {
+      if (o.id === orderId) {
+        // If it was a dine-in order, set table to cleaning
+        if (o.tableId) {
+          updateTableStatus(o.tableId, TableStatus.CLEANING, { currentOrderId: undefined, seatedAt: undefined });
+        }
+        return { ...o, status: OrderStatus.DELIVERED, paymentMethod: payment.method as PaymentMethod };
+      }
+      return o;
+    }));
   };
 
   const saveNewCard = (card: Omit<SavedCard, 'id'>) => {
@@ -188,12 +308,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentUser({ ...currentUser, savedCards: [...currentUser.savedCards, newCard] });
   };
 
+  const clearCart = () => {
+    setCurrentCart([]);
+    setEditingOrderId(null);
+    setSelectedTable(null);
+  };
+
+  const voidOrder = (orderId: string) => {
+    setActiveOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.CANCELED } : o));
+    const order = activeOrders.find(o => o.id === orderId);
+    if (order?.tableId) {
+      updateTableStatus(order.tableId, TableStatus.AVAILABLE, { currentOrderId: undefined, seatedAt: undefined });
+    }
+  };
+
+  const loadOrderToPOS = (order: Order) => {
+    setCurrentCart(order.items);
+    setEditingOrderId(order.id);
+    setCartOrderType(order.type);
+    if (order.tableId) {
+      const table = tables.find(t => t.id === order.tableId);
+      if (table) setSelectedTable(table);
+    }
+  };
+
+  const reorder = (orderId: string) => {
+    const order = activeOrders.find(o => o.id === orderId);
+    if (order) {
+      setCurrentCart(order.items);
+      setEditingOrderId(null);
+      setCartOrderType(order.type);
+    }
+  };
+
   const addToCart = (item: MenuItem, customization?: any) => {
     const newOrderItem: OrderItem = { itemId: item.id, uniqueId: Math.random().toString(36).substr(2, 9), name: item.nameAr, quantity: 1, basePrice: item.price, price: item.price, ...customization };
     setCurrentCart(prev => [...prev, newOrderItem]);
   };
   const removeFromCart = (uniqueId: string) => setCurrentCart(prev => prev.filter(i => i.uniqueId !== uniqueId));
   const updateCartQuantity = (uniqueId: string, delta: number) => setCurrentCart(prev => prev.map(i => i.uniqueId === uniqueId ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i));
+  const updateCartItem = (uniqueId: string, updates: Partial<OrderItem>) => setCurrentCart(prev => prev.map(i => i.uniqueId === uniqueId ? { ...i, ...updates } : i));
   const toggleFavorite = (itemId: string) => {
     if (!currentUser) return;
     const isFav = currentUser.favorites.includes(itemId);
@@ -210,8 +364,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addJobTitle, updateJobTitle, deleteJobTitle,
       addJobType, updateJobType, deleteJobType,
       addEmployee, updateEmployee, deleteEmployee,
-      login, logout, addToCart, removeFromCart, updateCartQuantity, submitOrder, depositToWallet, refundToWallet, saveNewCard, toggleFavorite, setOrderType,
-      tables, selectedTable, setSelectedTable, editingOrderId, clearCart, voidOrder, completeOrder, loadOrderToPOS, currentShift, openShift, closeShift,
+      login, logout, addToCart, removeFromCart, updateCartQuantity, updateCartItem, submitOrder, depositToWallet, refundToWallet, saveNewCard, toggleFavorite, setOrderType,
+      tables, selectedTable, setSelectedTable, updateTableStatus, transferTable, mergeTables, editingOrderId, clearCart, voidOrder, completeOrder, loadOrderToPOS, currentShift, openShift, closeShift,
       reorder
     }}>
       {children}

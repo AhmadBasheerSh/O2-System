@@ -1,5 +1,5 @@
 
-import { MenuItem, Table } from './types';
+import { MenuItem, Table, TableStatus } from './types';
 
 export const CATEGORIES = [
   { id: 'all', name: 'الكل', icon: '🍽️' },
@@ -44,9 +44,41 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: '8', name: 'Zinger Burger', nameAr: 'زنجر حار دبل', price: 28, category: 'burgers', image: 'https://images.unsplash.com/photo-1525164286253-04e68b9d94bb?w=500&q=80', descriptionAr: 'صدر دجاج مقرمش حار جداً مع الصوص الخاص.', dietary: { spicyLevel: 3 } },
 ];
 
-export const TABLES: Table[] = Array.from({ length: 12 }, (_, i) => ({
-  id: `t-${i + 1}`,
-  number: i + 1,
-  status: i % 4 === 0 ? 'OCCUPIED' : (i % 6 === 0 ? 'RESERVED' : 'EMPTY'),
-  capacity: i < 6 ? 4 : 8,
-}));
+export const TABLES: Table[] = Array.from({ length: 100 }, (_, i) => {
+  const row = Math.floor(i / 10);
+  const col = i % 10;
+  
+  let status = TableStatus.AVAILABLE;
+  let seatedAt: Date | undefined = undefined;
+  let reservationName: string | undefined = undefined;
+  let reservationTime: string | undefined = undefined;
+  let currentOrderId: string | undefined = undefined;
+
+  if (i === 0 || i === 5 || i === 12) {
+    status = TableStatus.OCCUPIED;
+    seatedAt = new Date(Date.now() - (Math.random() * 60 * 60000)); // Seated 0-60 mins ago
+    if (i === 0) currentOrderId = 'o-1';
+  } else if (i === 1 || i === 8) {
+    status = TableStatus.PAYMENT_PENDING;
+    seatedAt = new Date(Date.now() - 45 * 60000);
+    if (i === 1) currentOrderId = 'o-2';
+  } else if (i === 2 || i === 15) {
+    status = TableStatus.RESERVED;
+    reservationName = i === 2 ? 'عائلة أحمد' : 'حجز VIP';
+    reservationTime = i === 2 ? '08:30 PM' : '09:00 PM';
+  } else if (i === 3 || i === 19) {
+    status = TableStatus.CLEANING;
+  }
+
+  return {
+    id: `t-${i + 1}`,
+    number: i + 1,
+    status,
+    capacity: (i % 5 === 0) ? 6 : 4,
+    position: { x: col * 120 + 50, y: row * 120 + 50 },
+    seatedAt,
+    reservationName,
+    reservationTime,
+    currentOrderId
+  };
+});
