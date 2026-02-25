@@ -9,13 +9,14 @@ import {
   Heart, Send, Bot, X, Sparkles, Clock, CheckCircle2, Package, Truck, 
   Minus, Trash2, Tag, Bell, Wallet, ArrowUpCircle, Receipt, ShieldCheck, 
   Utensils, Search, Filter, Flame, Leaf, Info, ShoppingCart, MapPin, Map, Navigation, Banknote, Store, 
-  ChevronRight, RefreshCcw, Timer, FileText, Calendar, AlertCircle
+  ChevronRight, RefreshCcw, Timer, FileText, Calendar, AlertCircle, Smartphone, Power
 } from 'lucide-react';
 
 export const CustomerPortal: React.FC = () => {
   const { 
     currentUser, addToCart, currentCart, removeFromCart, updateCartQuantity, 
-    submitOrder, activeOrders, toggleFavorite, depositToWallet, cartOrderType, setOrderType, reorder 
+    submitOrder, activeOrders, toggleFavorite, depositToWallet, cartOrderType, setOrderType, reorder,
+    tables, setSelectedTable, selectedTable, logout
   } = useApp();
   
   const [activeTab, setActiveTab] = useState<'home' | 'menu' | 'orders' | 'wallet' | 'profile'>('home');
@@ -85,6 +86,8 @@ export const CustomerPortal: React.FC = () => {
   const getStatusLabel = (status: OrderStatus) => {
     const labels: Record<string, string> = {
       [OrderStatus.PENDING]: 'قيد الانتظار',
+      [OrderStatus.PENDING_CONFIRMATION]: 'بانتظار تأكيد الموظف',
+      [OrderStatus.CONFIRMED]: 'تم التأكيد',
       [OrderStatus.PREPARING]: 'جاري التحضير',
       [OrderStatus.READY]: 'جاهز للاستلام',
       [OrderStatus.ON_DELIVERY]: 'جاري التوصيل',
@@ -98,6 +101,8 @@ export const CustomerPortal: React.FC = () => {
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
       case OrderStatus.DELIVERED: return 'text-green-500 bg-green-500/10 border-green-500/20';
+      case OrderStatus.CONFIRMED: return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+      case OrderStatus.PENDING_CONFIRMATION: return 'text-orange-500 bg-orange-500/10 border-orange-500/20 animate-pulse';
       case OrderStatus.CANCELED:
       case OrderStatus.REFUNDED: return 'text-red-500 bg-red-500/10 border-red-500/20';
       case OrderStatus.ON_DELIVERY:
@@ -213,6 +218,42 @@ export const CustomerPortal: React.FC = () => {
          </div>
          <div className="w-12 h-12 bg-slate-800 rounded-2xl flex items-center justify-center text-red-500 group-hover:bg-red-600 group-hover:text-white transition-all"><ChevronLeft size={24} /></div>
       </div>
+
+      <section className="space-y-4">
+        <h3 className="text-xl font-black text-white flex items-center gap-2">الطلب عبر الطاولة (QR)</h3>
+        <div className="bg-slate-900 p-8 rounded-[2.5rem] border border-white/5 space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-blue-600/10 text-blue-500 rounded-2xl flex items-center justify-center">
+              <Smartphone size={32} />
+            </div>
+            <div>
+              <h4 className="font-black text-white">امسح الكود أو اختر الطاولة</h4>
+              <p className="text-xs text-slate-500 font-bold">اطلب مباشرة من مكانك وسنقوم بخدمتك</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+            {tables.map(table => (
+              <button
+                key={table.id}
+                onClick={() => {
+                  setSelectedTable(table);
+                  setOrderType(OrderType.DINE_IN);
+                  setActiveTab('menu');
+                }}
+                className={`aspect-square rounded-2xl border-2 flex flex-col items-center justify-center transition-all ${
+                  selectedTable?.id === table.id 
+                    ? 'border-red-600 bg-red-600/10 text-red-500' 
+                    : 'bg-slate-950 border-white/5 text-slate-500 hover:border-white/20'
+                }`}
+              >
+                <span className="text-lg font-black">{table.number}</span>
+                <span className="text-[8px] font-bold uppercase">طاولة</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 
@@ -497,6 +538,19 @@ export const CustomerPortal: React.FC = () => {
                      </div>
                      <ChevronLeft size={18} className="text-slate-600" />
                   </button>
+                  <button 
+                    onClick={logout}
+                    className="w-full flex items-center justify-between p-6 hover:bg-red-500/10 transition-all text-right group"
+                  >
+                     <div className="flex items-center gap-4">
+                        <div className="p-3 bg-red-500/10 rounded-xl text-red-500 group-hover:bg-red-600 group-hover:text-white transition-all"><Power size={20}/></div>
+                        <div>
+                           <p className="font-black text-red-500 text-sm">تسجيل الخروج</p>
+                           <p className="text-[10px] text-slate-500 font-bold mt-0.5">الخروج من حسابك الحالي</p>
+                        </div>
+                     </div>
+                     <ChevronLeft size={18} className="text-red-500 group-hover:-translate-x-1 transition-transform" />
+                  </button>
                </div>
             </div>
          </div>
@@ -523,6 +577,14 @@ export const CustomerPortal: React.FC = () => {
             <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`w-full flex items-center gap-4 px-6 py-4 rounded-[1.4rem] font-black text-sm transition-all ${activeTab === item.id ? 'bg-red-600 text-white shadow-xl shadow-red-900/20' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-100'}`}><item.icon size={22} /> {item.label}</button>
           ))}
         </nav>
+        <div className="mt-auto pt-6 border-t border-white/5">
+          <button 
+            onClick={logout}
+            className="w-full flex items-center gap-4 px-6 py-4 rounded-[1.4rem] font-black text-sm text-red-500 hover:bg-red-500/10 transition-all"
+          >
+            <Power size={22} /> تسجيل الخروج
+          </button>
+        </div>
       </aside>
 
       <main className="flex-1 overflow-auto relative pb-24 lg:pb-0 custom-scrollbar">

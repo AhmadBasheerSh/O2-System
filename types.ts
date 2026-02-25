@@ -13,7 +13,10 @@ export enum OrderStatus {
   DELIVERED = 'DELIVERED',
   CANCELED = 'CANCELED',
   REFUNDED = 'REFUNDED',
-  IN_PROGRESS = 'IN_PROGRESS'
+  IN_PROGRESS = 'IN_PROGRESS',
+  PENDING_CONFIRMATION = 'PENDING_CONFIRMATION',
+  CONFIRMED = 'CONFIRMED',
+  COLLECTED = 'COLLECTED'
 }
 
 export enum PaymentMethod {
@@ -52,6 +55,7 @@ export interface MenuItem {
   dietary?: { vegan?: boolean; glutenFree?: boolean; spicyLevel?: number };
   sizes?: { name: string; price: number }[];
   addons?: { name: string; price: number }[];
+  departmentId?: string;
 }
 
 export interface OrderItem {
@@ -61,6 +65,9 @@ export interface OrderItem {
   quantity: number;
   price: number; 
   basePrice: number;
+  departmentId?: string;
+  status?: OrderStatus;
+  preparedAt?: Date;
   size?: string;
   addons?: string[];
   note?: string;
@@ -98,6 +105,7 @@ export interface Order {
     driverPhone?: string;
     eta: string;
   };
+  shelfLocation?: string;
 }
 
 export interface Branch {
@@ -146,15 +154,16 @@ export interface Employee {
   hireDate: Date;
   salary: number;
   status: 'ACTIVE' | 'ON_LEAVE' | 'TERMINATED';
-  role: 'CASHIER' | 'WAITER' | 'MANAGER' | 'ADMIN' | 'BRANCH_MANAGER';
+  role: 'CASHIER' | 'WAITER' | 'MANAGER' | 'ADMIN' | 'BRANCH_MANAGER' | 'HOSPITALITY' | 'KITCHEN' | 'DEPARTMENT_STAFF' | 'ORDER_AGGREGATOR';
 }
 
 export interface User {
   id: string;
   name: string;
   phone: string;
-  role: 'CASHIER' | 'CUSTOMER' | 'WAITER' | 'BRANCH_MANAGER';
+  role: 'CASHIER' | 'CUSTOMER' | 'WAITER' | 'BRANCH_MANAGER' | 'HOSPITALITY' | 'KITCHEN' | 'DEPARTMENT_STAFF' | 'ORDER_AGGREGATOR';
   branchId?: string;
+  departmentId?: string;
   points: number;
   balance: number;
   tier: 'SILVER' | 'GOLD' | 'PLATINUM';
@@ -174,16 +183,71 @@ export enum TableStatus {
   CLEANING = 'CLEANING'
 }
 
+export interface Hall {
+  id: string;
+  name: string;
+}
+
 export interface Table {
   id: string;
   number: number;
   status: TableStatus;
   capacity: number;
+  hallId: string;
   currentOrderId?: string;
   seatedAt?: Date;
   reservationName?: string;
   reservationTime?: string;
   position: { x: number; y: number };
+}
+
+export enum FinancialTransactionType {
+  WITHDRAWAL = 'WITHDRAWAL', // سحوبات (مصاريف)
+  DEPOSIT = 'DEPOSIT',       // توريد (زيادة رصيد)
+  REFUND = 'REFUND',         // مرتجع
+  CASH_DROP = 'CASH_DROP',   // توريد للبنك/الإدارة
+  VOID = 'VOID'              // إلغاء فاتورة
+}
+
+export interface FinancialTransaction {
+  id: string;
+  shiftId: string;
+  cashierId: string;
+  type: FinancialTransactionType;
+  amount: number;
+  reason: string;
+  timestamp: Date;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  attachment?: string; // Optional image/receipt
+}
+
+export interface CustomerFeedback {
+  id: string;
+  orderId?: string;
+  customerId?: string;
+  customerName: string;
+  type: 'COMPLAINT' | 'SUGGESTION' | 'COMPLIMENT';
+  category: 'FOOD' | 'SERVICE' | 'CLEANLINESS' | 'ATMOSPHERE' | 'OTHER';
+  rating: number; // 1-5
+  comment: string;
+  status: 'NEW' | 'REVIEWED' | 'RESOLVED';
+  timestamp: Date;
+}
+
+export interface StaffTask {
+  id: string;
+  title: string;
+  description: string;
+  assignedTo: string; // Employee ID
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  dueDate: Date;
+}
+
+export interface TableAssignment {
+  tableId: string;
+  staffId: string; // Employee ID (Captain/Waiter)
+  shiftId: string;
 }
 
 export interface Shift {

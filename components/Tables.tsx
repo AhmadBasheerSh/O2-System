@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../store';
 import { Table, TableStatus, Order } from '../types';
+import { HALLS } from '../constants';
 import { 
   Users, Clock, DollarSign, Move, Merge, Split, 
   Trash2, ExternalLink, X, Info, Map as MapIcon, Grid,
-  ChevronRight, ChevronLeft, ZoomIn, ZoomOut
+  ChevronRight, ChevronLeft, ZoomIn, ZoomOut, Layout
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -17,12 +18,15 @@ export const TablesView: React.FC<{ onSelect: (table: Table) => void }> = ({ onS
   } = useApp();
   
   const [viewMode, setViewMode] = useState<'MAP' | 'GRID'>('MAP');
+  const [selectedHallId, setSelectedHallId] = useState<string>(HALLS[0].id);
   const [zoom, setZoom] = useState(1);
   const [showPopup, setShowPopup] = useState<string | null>(null);
   const [transferMode, setTransferMode] = useState<{ fromId: string } | null>(null);
   const [mergeMode, setMergeMode] = useState<string[]>([]);
   
   const mapRef = useRef<HTMLDivElement>(null);
+
+  const filteredTables = tables.filter(t => t.hallId === selectedHallId);
 
   const getStatusConfig = (status: TableStatus) => {
     switch(status) {
@@ -98,6 +102,19 @@ export const TablesView: React.FC<{ onSelect: (table: Table) => void }> = ({ onS
         </div>
 
         <div className="flex flex-wrap gap-3">
+          {/* Hall Switcher */}
+          <div className="flex bg-slate-900 p-1 rounded-2xl border border-white/5 overflow-x-auto scrollbar-hide">
+            {HALLS.map(hall => (
+              <button
+                key={hall.id}
+                onClick={() => setSelectedHallId(hall.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] transition-all whitespace-nowrap ${selectedHallId === hall.id ? 'bg-slate-800 text-white border border-white/10' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <Layout size={14} /> {hall.name}
+              </button>
+            ))}
+          </div>
+
           <div className="flex bg-slate-900 p-1 rounded-2xl border border-white/5">
             <button 
               onClick={() => setViewMode('MAP')}
@@ -152,7 +169,7 @@ export const TablesView: React.FC<{ onSelect: (table: Table) => void }> = ({ onS
       <div className="flex-1 relative overflow-hidden bg-slate-900/50 rounded-[2.5rem] border border-white/5 custom-scrollbar">
         {viewMode === 'GRID' ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4 p-8 overflow-y-auto h-full custom-scrollbar">
-            {tables.map(table => {
+            {filteredTables.map(table => {
               const config = getStatusConfig(table.status);
               const order = getTableOrder(table.id);
               return (
@@ -171,9 +188,16 @@ export const TablesView: React.FC<{ onSelect: (table: Table) => void }> = ({ onS
                       {table.capacity} أشخاص
                     </span>
                     {order && (
-                      <span className="text-[10px] font-black text-white/80">
-                        {order.total.toFixed(2)} ₪
-                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-[10px] font-black text-white/80">
+                          {order.total.toFixed(2)} ₪
+                        </span>
+                        {order.shelfLocation && (
+                          <span className="text-[8px] font-black bg-white text-red-600 px-1.5 py-0.5 rounded-full shadow-sm">
+                            الرف: {order.shelfLocation}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   {table.status === TableStatus.OCCUPIED && (
@@ -199,7 +223,7 @@ export const TablesView: React.FC<{ onSelect: (table: Table) => void }> = ({ onS
                 transformOrigin: 'top left'
               }}
             >
-              {tables.map(table => {
+              {filteredTables.map(table => {
                 const config = getStatusConfig(table.status);
                 const order = getTableOrder(table.id);
                 return (
@@ -224,9 +248,16 @@ export const TablesView: React.FC<{ onSelect: (table: Table) => void }> = ({ onS
                           {table.capacity} أشخاص
                         </span>
                         {order && (
-                          <span className="font-black" style={{ fontSize: `${9 * zoom}px` }}>
-                            {order.total.toFixed(2)} ₪
-                          </span>
+                          <div className="flex flex-col items-center">
+                            <span className="font-black" style={{ fontSize: `${9 * zoom}px` }}>
+                              {order.total.toFixed(2)} ₪
+                            </span>
+                            {order.shelfLocation && (
+                              <span className="font-black bg-white text-red-600 px-1 py-0.5 rounded-full shadow-sm" style={{ fontSize: `${7 * zoom}px` }}>
+                                الرف: {order.shelfLocation}
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}

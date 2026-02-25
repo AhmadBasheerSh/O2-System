@@ -1,16 +1,18 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../store';
-import { OrderStatus, Order, PaymentMethod } from '../types';
+import { OrderStatus, Order, PaymentMethod, FinancialTransactionType } from '../types';
+import { DEPARTMENTS } from '../constants';
 import { 
   Clock, CheckCircle2, XCircle, Edit3, Eye, Search, 
   User, Phone, CreditCard, Wallet, Banknote, FileText, 
-  PackageOpen, ClipboardList, Hash
+  PackageOpen, ClipboardList, Hash, RotateCcw, Trash2
 } from 'lucide-react';
 
 export const OrdersView: React.FC = () => {
-  const { activeOrders, voidOrder, completeOrder, loadOrderToPOS, currentShift } = useApp();
+  const { activeOrders, voidOrder, completeOrder, loadOrderToPOS, currentShift, addFinancialTransaction, currentUser } = useApp();
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'CLOSED'>('ACTIVE');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
   const getStatusColor = (status: OrderStatus) => {
@@ -64,11 +66,13 @@ export const OrdersView: React.FC = () => {
       ? order.status !== OrderStatus.DELIVERED && order.status !== OrderStatus.CANCELED
       : order.status === OrderStatus.DELIVERED || order.status === OrderStatus.CANCELED;
     
+    const matchesStatus = statusFilter === 'ALL' || order.status === statusFilter;
+
     const matchesSearch = order.orderNumber.includes(searchTerm) || 
                          (order.customerName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          (order.customerPhone?.includes(searchTerm));
     
-    return matchesTab && matchesSearch;
+    return matchesTab && matchesStatus && matchesSearch;
   });
 
   const handleEditOrder = (order: Order) => {
@@ -77,6 +81,38 @@ export const OrdersView: React.FC = () => {
       return;
     }
     loadOrderToPOS(order);
+  };
+
+  const handleRefund = (order: Order) => {
+    if (!currentShift || !currentUser) return;
+    const confirm = window.confirm(`هل أنت متأكد من رغبتك في استرداد الطلب #${order.orderNumber}؟`);
+    if (confirm) {
+      addFinancialTransaction({
+        shiftId: currentShift.id,
+        cashierId: currentUser.id,
+        type: FinancialTransactionType.REFUND,
+        amount: order.total,
+        reason: `مرتجع طلب #${order.orderNumber}`,
+      });
+      voidOrder(order.id);
+      alert('تم تسجيل طلب المرتجع بنجاح');
+    }
+  };
+
+  const handleVoid = (order: Order) => {
+    if (!currentShift || !currentUser) return;
+    const reason = window.prompt('يرجى إدخال سبب إلغاء الطلب:');
+    if (reason) {
+      addFinancialTransaction({
+        shiftId: currentShift.id,
+        cashierId: currentUser.id,
+        type: FinancialTransactionType.VOID,
+        amount: order.total,
+        reason: `إلغاء طلب #${order.orderNumber}: ${reason}`,
+      });
+      voidOrder(order.id);
+      alert('تم إلغاء الطلب وتسجيل العملية');
+    }
   };
 
   return (
@@ -100,22 +136,47 @@ export const OrdersView: React.FC = () => {
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="flex bg-slate-900 p-1.5 rounded-[2rem] border border-white/5 w-fit shadow-2xl">
-        <button 
-          onClick={() => setActiveTab('ACTIVE')}
-          className={`flex items-center gap-2 px-10 py-3.5 rounded-[1.5rem] font-black text-sm transition-all ${activeTab === 'ACTIVE' ? 'bg-red-600 text-white shadow-xl shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
-        >
-          <ClipboardList size={18} />
-          الطلبات النشطة
-        </button>
-        <button 
-          onClick={() => setActiveTab('CLOSED')}
-          className={`flex items-center gap-2 px-10 py-3.5 rounded-[1.5rem] font-black text-sm transition-all ${activeTab === 'CLOSED' ? 'bg-slate-800 text-white shadow-xl' : 'text-slate-500 hover:text-slate-300'}`}
-        >
-          <CheckCircle2 size={18} />
-          الطلبات المغلقة
-        </button>
+      {/* Tabs & Filters */}
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <div className="flex bg-slate-900 p-1.5 rounded-[2rem] border border-white/5 w-fit shadow-2xl">
+          <button 
+            onClick={() => { setActiveTab('ACTIVE'); setStatusFilter('ALL'); }}
+            className={`flex items-center gap-2 px-10 py-3.5 rounded-[1.5rem] font-black text-sm transition-all ${activeTab === 'ACTIVE' ? 'bg-red-600 text-white shadow-xl shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            <ClipboardList size={18} />
+            الطلبات النشطة
+          </button>
+          <button 
+            onClick={() => { setActiveTab('CLOSED'); setStatusFilter('ALL'); }}
+            className={`flex items-center gap-2 px-10 py-3.5 rounded-[1.5rem] font-black text-sm transition-all ${activeTab === 'CLOSED' ? 'bg-slate-800 text-white shadow-xl' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            <CheckCircle2 size={18} />
+            الطلبات المغلقة
+          </button>
+        </div>
+
+        {activeTab === 'ACTIVE' && (
+          <div className="flex bg-slate-900 p-1 rounded-2xl border border-white/5 shadow-xl">
+            <button 
+              onClick={() => setStatusFilter('ALL')}
+              className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${statusFilter === 'ALL' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              الكل
+            </button>
+            <button 
+              onClick={() => setStatusFilter(OrderStatus.PREPARING)}
+              className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${statusFilter === OrderStatus.PREPARING ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              في المطبخ
+            </button>
+            <button 
+              onClick={() => setStatusFilter(OrderStatus.READY)}
+              className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${statusFilter === OrderStatus.READY ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/20' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              جاهزة للاستلام
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -144,13 +205,20 @@ export const OrdersView: React.FC = () => {
                 </div>
                 <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
                   {order.items.map(item => (
-                    <div key={item.uniqueId} className="flex justify-between items-center bg-slate-800/50 p-3 rounded-2xl border border-white/5">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black text-slate-200">{item.name}</span>
-                        <span className="text-[10px] font-bold text-slate-500">الكمية: {item.quantity}</span>
+                      <div key={item.uniqueId} className="flex justify-between items-center bg-slate-800/50 p-3 rounded-2xl border border-white/5">
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-slate-200">{item.name}</span>
+                            {item.departmentId && (
+                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 border border-white/5">
+                                {DEPARTMENTS.find(d => d.id === item.departmentId)?.name}
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-500">الكمية: {item.quantity}</span>
+                        </div>
+                        <span className="text-xs font-black text-white">{(item.price * item.quantity).toFixed(2)} ₪</span>
                       </div>
-                      <span className="text-xs font-black text-white">{(item.price * item.quantity).toFixed(2)} ₪</span>
-                    </div>
                   ))}
                 </div>
               </div>
@@ -217,6 +285,13 @@ export const OrdersView: React.FC = () => {
                {activeTab === 'ACTIVE' ? (
                  <>
                     <button 
+                      onClick={() => handleVoid(order)}
+                      className="p-3.5 rounded-2xl bg-red-600/10 text-red-500 border border-red-500/20 hover:bg-red-600 hover:text-white transition-all active:scale-95"
+                      title="إلغاء الطلب"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                    <button 
                       onClick={() => handleEditOrder(order)}
                       className="flex-1 bg-slate-800 border border-white/5 text-slate-300 py-3.5 rounded-2xl font-black text-xs hover:bg-slate-700 flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
@@ -230,9 +305,17 @@ export const OrdersView: React.FC = () => {
                     </button>
                  </>
                ) : (
-                 <button className="flex-1 bg-slate-800 border border-white/5 text-slate-300 py-3.5 rounded-2xl font-black text-xs hover:bg-slate-700 flex items-center justify-center gap-2 transition-all active:scale-95">
-                   <Eye size={16} /> عرض التفاصيل الكاملة
-                 </button>
+                 <>
+                   <button 
+                    onClick={() => handleRefund(order)}
+                    className="flex-1 bg-orange-600/10 border border-orange-500/20 text-orange-500 py-3.5 rounded-2xl font-black text-xs hover:bg-orange-600 hover:text-white flex items-center justify-center gap-2 transition-all active:scale-95"
+                   >
+                     <RotateCcw size={16} /> طلب مرتجع
+                   </button>
+                   <button className="flex-1 bg-slate-800 border border-white/5 text-slate-300 py-3.5 rounded-2xl font-black text-xs hover:bg-slate-700 flex items-center justify-center gap-2 transition-all active:scale-95">
+                     <Eye size={16} /> عرض التفاصيل الكاملة
+                   </button>
+                 </>
                )}
             </div>
           </div>

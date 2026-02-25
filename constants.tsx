@@ -1,5 +1,5 @@
 
-import { MenuItem, Table, TableStatus } from './types';
+import { MenuItem, Table, TableStatus, Hall } from './types';
 
 export const CATEGORIES = [
   { id: 'all', name: 'الكل', icon: '🍽️' },
@@ -10,9 +10,17 @@ export const CATEGORIES = [
   { id: 'desserts', name: 'حلويات', icon: '🍰' },
 ];
 
+export const DEPARTMENTS = [
+  { id: 'd-italian', name: 'القسم الإيطالي', icon: '🇮🇹' },
+  { id: 'd-bar', name: 'البار (المشروبات)', icon: '🍹' },
+  { id: 'd-grills', name: 'قسم المشاوي', icon: '🔥' },
+  { id: 'd-fastfood', name: 'الوجبات السريعة', icon: '⚡' },
+  { id: 'd-desserts', name: 'قسم الحلويات', icon: '🍰' },
+];
+
 export const MENU_ITEMS: MenuItem[] = [
   { 
-    id: '1', name: 'Classic Burger', nameAr: 'برجر كلاسيك بريميوم', price: 25, category: 'burgers', 
+    id: '1', name: 'Classic Burger', nameAr: 'برجر كلاسيك بريميوم', price: 25, category: 'burgers', departmentId: 'd-fastfood',
     image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&q=80',
     descriptionAr: 'قطعة لحم أنجوس مشوية مع خبز البطاطس الهش، خس، طماطم، صوص السرياتشا المميز.',
     popular: true,
@@ -21,32 +29,49 @@ export const MENU_ITEMS: MenuItem[] = [
     addons: [{ name: 'جبنة زيادة', price: 5 }, { name: 'بدون بصل', price: 0 }]
   },
   { 
-    id: '7', name: 'Mix Grills', nameAr: 'مشاوي مشكلة عائلية', price: 85, category: 'grills', 
+    id: '7', name: 'Mix Grills', nameAr: 'مشاوي مشكلة عائلية', price: 85, category: 'grills', departmentId: 'd-grills',
     image: 'https://images.unsplash.com/photo-1544148103-0773bf10d330?w=500&q=80',
     descriptionAr: 'تشكيلة من كباب اللحم، كباب الدجاج، والشيش طاووق مع الخبز المحمص والسلطات.',
     popular: true,
     addons: [{ name: 'صوص ثوم إضافي', price: 3 }, { name: 'حمص صغير', price: 10 }]
   },
   { 
-    id: '2', name: 'Margherita Pizza', nameAr: 'بيتزا مارجريتا إيطالية', price: 35, category: 'pizza', 
+    id: '2', name: 'Margherita Pizza', nameAr: 'بيتزا مارجريتا إيطالية', price: 35, category: 'pizza', departmentId: 'd-italian',
     image: 'https://images.unsplash.com/photo-1604382354936-07c5d9983bd3?w=500&q=80',
     descriptionAr: 'عجينة نابولي التقليدية مع صلصة البندورة الطازجة، ريحان، وجبنة الموزاريلا الفاخرة.',
     dietary: { vegan: true },
     sizes: [{ name: 'وسط', price: 35 }, { name: 'كبير', price: 55 }]
   },
   { 
-    id: '3', name: 'Fresh Orange', nameAr: 'عصير برتقال طبيعي', price: 12, category: 'drinks', 
+    id: '3', name: 'Fresh Orange', nameAr: 'عصير برتقال طبيعي', price: 12, category: 'drinks', departmentId: 'd-bar',
     image: 'https://images.unsplash.com/photo-1557800636-894a64c1696f?w=500&q=80',
     descriptionAr: 'عصير برتقال طازج معصور يومياً بدون سكر مضاف.'
   },
-  { id: '4', name: 'French Fries', nameAr: 'بطاطس مقلية مملحة', price: 10, category: 'starters', image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&q=80' },
-  { id: '5', name: 'Chocolate Fondue', nameAr: 'فوندو الشوكولاتة الساخن', price: 18, category: 'desserts', image: 'https://images.unsplash.com/photo-1511910849309-0dffb8c83742?w=500&q=80', descriptionAr: 'كيك شوكولاتة ذائب مع الآيس كريم.' },
-  { id: '8', name: 'Zinger Burger', nameAr: 'زنجر حار دبل', price: 28, category: 'burgers', image: 'https://images.unsplash.com/photo-1525164286253-04e68b9d94bb?w=500&q=80', descriptionAr: 'صدر دجاج مقرمش حار جداً مع الصوص الخاص.', dietary: { spicyLevel: 3 } },
+  { id: '4', name: 'French Fries', nameAr: 'بطاطس مقلية مملحة', price: 10, category: 'starters', departmentId: 'd-fastfood', image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&q=80' },
+  { id: '5', name: 'Chocolate Fondue', nameAr: 'فوندو الشوكولاتة الساخن', price: 18, category: 'desserts', departmentId: 'd-desserts', image: 'https://images.unsplash.com/photo-1511910849309-0dffb8c83742?w=500&q=80', descriptionAr: 'كيك شوكولاتة ذائب مع الآيس كريم.' },
+  { id: '8', name: 'Zinger Burger', nameAr: 'زنجر حار دبل', price: 28, category: 'burgers', departmentId: 'd-fastfood', image: 'https://images.unsplash.com/photo-1525164286253-04e68b9d94bb?w=500&q=80', descriptionAr: 'صدر دجاج مقرمش حار جداً مع الصوص الخاص.', dietary: { spicyLevel: 3 } },
+];
+
+export const HALLS: Hall[] = [
+  { id: 'h1', name: 'القاعة الرئيسية' },
+  { id: 'h2', name: 'التراس' },
+  { id: 'h3', name: 'VIP' },
+  { id: 'h4', name: 'مناسبات' },
 ];
 
 export const TABLES: Table[] = Array.from({ length: 100 }, (_, i) => {
-  const row = Math.floor(i / 10);
-  const col = i % 10;
+  const tableNumber = i + 1;
+  let hallId = 'h1';
+  if (tableNumber > 85) hallId = 'h4';
+  else if (tableNumber > 70) hallId = 'h3';
+  else if (tableNumber > 40) hallId = 'h2';
+
+  const iInHall = hallId === 'h1' ? i : 
+                 hallId === 'h2' ? i - 40 :
+                 hallId === 'h3' ? i - 70 : i - 85;
+
+  const row = Math.floor(iInHall / 10);
+  const col = iInHall % 10;
   
   let status = TableStatus.AVAILABLE;
   let seatedAt: Date | undefined = undefined;
@@ -71,10 +96,11 @@ export const TABLES: Table[] = Array.from({ length: 100 }, (_, i) => {
   }
 
   return {
-    id: `t-${i + 1}`,
-    number: i + 1,
+    id: `t-${tableNumber}`,
+    number: tableNumber,
     status,
     capacity: (i % 5 === 0) ? 6 : 4,
+    hallId,
     position: { x: col * 120 + 50, y: row * 120 + 50 },
     seatedAt,
     reservationName,

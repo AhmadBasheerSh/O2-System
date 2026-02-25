@@ -12,9 +12,18 @@ import {
   Building2,
   MonitorPlay,
   LayoutDashboard,
+  LayoutGrid,
   ChevronRight,
   ChevronLeft,
-  Menu
+  Menu,
+  Receipt,
+  HeartHandshake,
+  MessageSquare,
+  ListTodo,
+  Activity,
+  Plus,
+  Utensils,
+  ChefHat
 } from 'lucide-react';
 
 interface SidebarItemProps {
@@ -50,6 +59,9 @@ export const AppLayout: React.FC<{
 
   const isAdmin = userRole === 'ADMIN';
   const isBranchManager = userRole === 'BRANCH_MANAGER';
+  const isHospitality = userRole === 'HOSPITALITY';
+  const isDeptStaff = userRole === 'DEPARTMENT_STAFF';
+  const isAggregator = userRole === 'ORDER_AGGREGATOR';
 
   return (
     <div className="flex h-screen bg-slate-950 overflow-hidden text-slate-100" dir="rtl">
@@ -87,6 +99,55 @@ export const AppLayout: React.FC<{
                 active={activeView === 'branch_orders'} collapsed={isCollapsed} onClick={() => setActiveView('branch_orders')} 
               />
             </>
+          ) : isHospitality ? (
+            <>
+              <SidebarItem 
+                icon={Grid2X2} label="إدارة الطاولات" 
+                active={activeView === 'hospitality_tables'} collapsed={isCollapsed} onClick={() => setActiveView('hospitality_tables')} 
+              />
+              <SidebarItem 
+                icon={Plus} label="إنشاء طلب" 
+                active={activeView === 'hospitality_pos'} collapsed={isCollapsed} onClick={() => setActiveView('hospitality_pos')} 
+              />
+              <SidebarItem 
+                icon={Activity} label="طلبات جديدة" 
+                active={activeView === 'hospitality_new_orders'} collapsed={isCollapsed} onClick={() => setActiveView('hospitality_new_orders')} 
+              />
+              <SidebarItem 
+                icon={Utensils} label="تتبع الطلبات" 
+                active={activeView === 'hospitality_tracking'} collapsed={isCollapsed} onClick={() => setActiveView('hospitality_tracking')} 
+              />
+              <SidebarItem 
+                icon={MessageSquare} label="الشكاوي والملاحظات" 
+                active={activeView === 'hospitality_feedback'} collapsed={isCollapsed} onClick={() => setActiveView('hospitality_feedback')} 
+              />
+              <SidebarItem 
+                icon={ListTodo} label="المهام والجداول" 
+                active={activeView === 'hospitality_tasks'} collapsed={isCollapsed} onClick={() => setActiveView('hospitality_tasks')} 
+              />
+              <SidebarItem 
+                icon={ChefHat} label="شاشة الأقسام" 
+                active={activeView === 'departments'} collapsed={isCollapsed} onClick={() => setActiveView('departments')} 
+              />
+            </>
+          ) : isDeptStaff ? (
+            <>
+              <SidebarItem 
+                icon={ChefHat} label="لوحة تحكم القسم" 
+                active={activeView === 'departments'} collapsed={isCollapsed} onClick={() => setActiveView('departments')} 
+              />
+            </>
+          ) : isAggregator ? (
+            <>
+              <SidebarItem 
+                icon={Grid2X2} label="لوحة التجميع" 
+                active={activeView === 'aggregator_dashboard'} collapsed={isCollapsed} onClick={() => setActiveView('aggregator_dashboard')} 
+              />
+              <SidebarItem 
+                icon={LayoutGrid} label="شبكة الرفوف" 
+                active={activeView === 'aggregator_shelves'} collapsed={isCollapsed} onClick={() => setActiveView('aggregator_shelves')} 
+              />
+            </>
           ) : (
             <>
               <SidebarItem 
@@ -102,8 +163,8 @@ export const AppLayout: React.FC<{
                 active={activeView === 'tables'} collapsed={isCollapsed} onClick={() => setActiveView('tables')} 
               />
               <SidebarItem 
-                icon={Users} label="العملاء" 
-                active={activeView === 'customers'} collapsed={isCollapsed} onClick={() => setActiveView('customers')} 
+                icon={Receipt} label="التقارير المالية" 
+                active={activeView === 'finance'} collapsed={isCollapsed} onClick={() => setActiveView('finance')} 
               />
               <SidebarItem 
                 icon={PieChart} label="التقارير" 
@@ -121,7 +182,7 @@ export const AppLayout: React.FC<{
           {!isCollapsed && (
             <div className="px-4 py-2">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">
-                {isAdmin ? 'الإدارة العامة' : isBranchManager ? `مدير: ${branches.find(b => b.id === currentUser?.branchId)?.name}` : 'الكاشير'}
+                {isAdmin ? 'الإدارة العامة' : isBranchManager ? `مدير: ${branches.find(b => b.id === currentUser?.branchId)?.name}` : isHospitality ? 'قسم الضيافة' : isDeptStaff ? 'موظف قسم' : isAggregator ? 'مجمع طلبات' : 'الكاشير'}
               </p>
               <p className="text-sm font-black text-slate-100 truncate">{currentUser?.name}</p>
             </div>

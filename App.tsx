@@ -6,10 +6,15 @@ import { Login } from './components/Login';
 import { POS } from './components/POS';
 import { TablesView } from './components/Tables';
 import { OrdersView } from './components/Orders';
+import { HospitalityView } from './components/HospitalityView';
+import { FinanceReports } from './components/FinanceReports';
 import { ShiftView } from './components/Shift';
 import { CustomerPortal } from './components/CustomerPortal';
 import { OrgStructure } from './components/OrgStructure';
 import { BranchManagerPortal } from './components/BranchManagerPortal';
+import { DepartmentView } from './components/DepartmentView';
+import { OrderAggregatorDashboard } from './components/OrderAggregatorDashboard';
+import { ShelfGridView } from './components/ShelfGridView';
 
 const Main: React.FC = () => {
   const { currentUser, currentShift, userRole, editingOrderId } = useApp();
@@ -20,6 +25,12 @@ const Main: React.FC = () => {
       setActiveView('org');
     } else if (userRole === 'BRANCH_MANAGER') {
       setActiveView('branch_dashboard');
+    } else if (userRole === 'HOSPITALITY') {
+      setActiveView('hospitality_tables');
+    } else if (userRole === 'DEPARTMENT_STAFF') {
+      setActiveView('departments');
+    } else if (userRole === 'ORDER_AGGREGATOR') {
+      setActiveView('aggregator_dashboard');
     } else if (editingOrderId) {
       setActiveView('pos');
     }
@@ -31,9 +42,12 @@ const Main: React.FC = () => {
   const showContent = () => {
     const isAdmin = userRole === 'ADMIN';
     const isBranchManager = userRole === 'BRANCH_MANAGER';
+    const isHospitality = userRole === 'HOSPITALITY';
+    const isDeptStaff = userRole === 'DEPARTMENT_STAFF';
+    const isAggregator = userRole === 'ORDER_AGGREGATOR';
 
-    // Branch Managers and Super Admins bypass shift check for administrative tasks
-    if (!currentShift && !isAdmin && !isBranchManager && activeView !== 'shift') {
+    // Branch Managers, Super Admins, Hospitality, and Dept Staff bypass shift check
+    if (!currentShift && !isAdmin && !isBranchManager && !isHospitality && !isDeptStaff && !isAggregator && activeView !== 'shift') {
       return (
         <div className="h-full flex flex-col items-center justify-center space-y-6 bg-white rounded-[3rem] shadow-sm">
           <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 shadow-inner">
@@ -59,6 +73,16 @@ const Main: React.FC = () => {
       case 'pos': return <POS onViewTables={() => setActiveView('tables')} />;
       case 'tables': return <TablesView onSelect={() => setActiveView('pos')} />;
       case 'orders': return <OrdersView />;
+      case 'hospitality_tables': return <HospitalityView initialTab="tables" setActiveView={setActiveView} />;
+      case 'hospitality_pos': return <POS onViewTables={() => setActiveView('hospitality_tables')} />;
+      case 'hospitality_new_orders': return <HospitalityView initialTab="new_orders" setActiveView={setActiveView} />;
+      case 'hospitality_tracking': return <HospitalityView initialTab="tracking" setActiveView={setActiveView} />;
+      case 'hospitality_feedback': return <HospitalityView initialTab="feedback" setActiveView={setActiveView} />;
+      case 'hospitality_tasks': return <HospitalityView initialTab="tasks" setActiveView={setActiveView} />;
+      case 'departments': return <DepartmentView />;
+      case 'aggregator_dashboard': return <OrderAggregatorDashboard />;
+      case 'aggregator_shelves': return <ShelfGridView />;
+      case 'finance': return <FinanceReports />;
       case 'shift': return <ShiftView />;
       case 'org': return <OrgStructure />;
       case 'branch_dashboard': return <BranchManagerPortal />;
