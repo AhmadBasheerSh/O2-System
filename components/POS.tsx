@@ -4,6 +4,7 @@ import { useApp } from '../store';
 import { MENU_ITEMS, CATEGORIES } from '../constants';
 import { OrderType, OrderStatus, PaymentMethod } from '../types';
 import { Search, Plus, Minus, ShoppingCart, Trash2, CreditCard, Save, CheckCircle, Tag, Wallet, Banknote, FileText, Filter } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) => {
   const { 
@@ -14,10 +15,36 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
   
   const isHospitality = userRole === 'HOSPITALITY';
   
-  const [activePOSMode, setActivePOSMode] = useState<'menu' | 'info' | 'contact'>('menu');
+  const [activePOSMode, setActivePOSMode] = useState<'menu' | 'info' | 'customer'>('menu');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [invoiceNote, setInvoiceNote] = useState('');
+  const [accountType, setAccountType] = useState<'ACCOUNT' | 'SUPPLIER' | 'EMPLOYEE'>('ACCOUNT');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+
+  const { employees } = useApp();
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
+
+  useEffect(() => {
+    if (paymentMethod === PaymentMethod.CASH) {
+      setCustomerName('صندوق مبيعات');
+      setAccountNumber('1001');
+    } else if (paymentMethod === PaymentMethod.WALLET) {
+      setAccountNumber('2002');
+      if (customerName === 'صندوق مبيعات') setCustomerName('');
+    } else if (paymentMethod === PaymentMethod.CREDIT_CARD) {
+      setAccountNumber('3003');
+      if (customerName === 'صندوق مبيعات') setCustomerName('');
+    }
+  }, [paymentMethod]);
+
+  useEffect(() => {
+    if (accountType === 'EMPLOYEE' && accountNumber) {
+      const emp = employees.find(e => e.id === accountNumber || e.phone === accountNumber);
+      if (emp) setCustomerName(emp.name);
+    }
+  }, [accountNumber, accountType, employees]);
   
   const [quickId, setQuickId] = useState('');
   const [quickQty, setQuickQty] = useState('');
@@ -82,7 +109,6 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [manualTable, setManualTable] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
@@ -112,14 +138,26 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
   const total = subtotal; // No tax or discount as requested
 
   const handleQuantityChange = (uniqueId: string, val: string, price: number) => {
-    const qty = parseFloat(val) || 0;
-    updateCartItem(uniqueId, { quantity: qty });
+    if (val === '') {
+      updateCartItem(uniqueId, { quantity: 0 });
+      return;
+    }
+    const qty = parseFloat(val);
+    if (!isNaN(qty)) {
+      updateCartItem(uniqueId, { quantity: qty });
+    }
   };
 
   const handleTotalChange = (uniqueId: string, val: string, price: number) => {
-    const newTotal = parseFloat(val) || 0;
-    const newQty = price > 0 ? newTotal / price : 0;
-    updateCartItem(uniqueId, { quantity: newQty });
+    if (val === '') {
+      updateCartItem(uniqueId, { quantity: 0 });
+      return;
+    }
+    const newTotal = parseFloat(val);
+    if (!isNaN(newTotal)) {
+      const newQty = price > 0 ? newTotal / price : 0;
+      updateCartItem(uniqueId, { quantity: newQty });
+    }
   };
 
   return (
@@ -129,7 +167,10 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
         <header className="mb-4 bg-slate-900 p-4 sm:p-6 rounded-3xl border border-white/5 shadow-xl space-y-6">
           <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
              <div className="flex items-center gap-4 shrink-0 w-full xl:w-auto justify-between xl:justify-start">
-               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight whitespace-nowrap">
+               <h2 
+                 onClick={clearCart}
+                 className="text-xl sm:text-2xl font-black text-white tracking-tight whitespace-nowrap cursor-pointer hover:text-red-500 transition-colors"
+               >
                  {editingOrderId ? `تعديل طلب #${editingOrderId.slice(-4)}` : 'فاتورة جديدة'}
                </h2>
                {editingOrderId && (
@@ -177,7 +218,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
 
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
             {!isHospitality && (
-              <div className="flex bg-slate-800 p-1 rounded-2xl shrink-0 border border-white/5 shadow-inner overflow-x-auto scrollbar-hide">
+              <div className="flex flex-wrap bg-slate-800 p-1 rounded-2xl shrink-0 border border-white/5 shadow-inner">
                 <button 
                   onClick={() => setActivePOSMode('menu')}
                   className={`px-4 sm:px-6 py-2.5 rounded-xl text-[10px] sm:text-xs font-black transition-all whitespace-nowrap ${activePOSMode === 'menu' ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
@@ -191,20 +232,22 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                   بيانات الفاتورة
                 </button>
                 <button 
-                  onClick={() => setActivePOSMode('contact')}
-                  className={`px-4 sm:px-6 py-2.5 rounded-xl text-[10px] sm:text-xs font-black transition-all whitespace-nowrap ${activePOSMode === 'contact' ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
+                  onClick={() => setActivePOSMode('customer')}
+                  className={`px-4 sm:px-6 py-2.5 rounded-xl text-[10px] sm:text-xs font-black transition-all whitespace-nowrap ${activePOSMode === 'customer' ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
                 >
-                  بيانات التواصل
+                  بيانات الزبون والحساب
                 </button>
               </div>
             )}
 
-            <div className="relative flex-1 w-full">
-              <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+            <div className="relative flex-1 w-full group">
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-red-500 transition-colors pointer-events-none">
+                <Search size={18} />
+              </div>
               <input 
                 type="text" 
-                placeholder="ابحث عن وجبة..."
-                className="w-full pr-12 pl-4 py-3.5 bg-slate-800 border border-white/5 rounded-2xl focus:ring-2 focus:ring-red-600 outline-none text-sm font-bold text-white placeholder-slate-600 shadow-inner"
+                placeholder="ابحث عن وجبة، رقم الصنف..."
+                className="w-full pr-12 pl-4 py-3 bg-slate-800/40 border border-white/5 rounded-xl focus:ring-2 focus:ring-red-600/50 outline-none text-xs font-bold text-white placeholder-slate-600 transition-all"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -215,44 +258,61 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
         <div className="flex-1 flex flex-col min-h-0">
           {activePOSMode === 'menu' ? (
             <>
-              <div className="mb-4 bg-slate-900 p-2 sm:p-4 rounded-3xl border border-white/5 flex gap-2 overflow-x-auto scrollbar-hide shrink-0 sticky top-0 z-10">
-                <div className="flex items-center gap-2 px-3 py-2 bg-slate-800 rounded-xl border border-white/5 text-slate-500 shrink-0">
-                  <Filter size={14} />
-                </div>
+              <div className="mb-4 flex flex-wrap gap-1.5 shrink-0 sticky top-0 z-10 py-1">
                 {CATEGORIES.map(cat => (
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl whitespace-nowrap text-[10px] sm:text-xs font-black transition-all border ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap text-[9px] font-black transition-all duration-200 border ${
                       selectedCategory === cat.id 
-                        ? 'bg-red-600 text-white border-red-600 shadow-lg shadow-red-900/30' 
-                        : 'bg-slate-800 text-slate-400 border-white/5 hover:bg-slate-700 hover:text-slate-100'
+                        ? 'bg-red-600 text-white border-red-600 shadow-sm' 
+                        : 'bg-slate-900 text-slate-500 border-white/5 hover:bg-slate-800'
                     }`}
                   >
-                    <span>{cat.icon}</span>
+                    <span className="text-xs">{cat.icon}</span>
                     <span>{cat.name}</span>
                   </button>
                 ))}
               </div>
 
-              <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 overflow-y-auto pr-1 pb-4 custom-scrollbar">
+              <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-6 overflow-y-auto pr-1 pb-8 custom-scrollbar">
                 {filteredItems.map(item => (
-                  <div 
+                  <motion.div 
                     key={item.id}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => addToCart(item)}
-                    className="bg-slate-900 p-2 sm:p-3 rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/5 hover:border-red-600 cursor-pointer group transition-all shadow-lg hover:shadow-red-900/10 flex flex-col"
+                    className="group cursor-pointer flex flex-col gap-3"
                   >
-                    <div className="aspect-square rounded-[1.2rem] sm:rounded-[2rem] overflow-hidden mb-2 sm:mb-3 bg-slate-800 relative">
-                      <img src={item.image} alt={item.nameAr} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
-                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-red-600/90 backdrop-blur-sm text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-[12px] font-black shadow-2xl border border-white/20">
-                        {item.price} ₪
+                    {/* Image Container */}
+                    <div className="aspect-square relative rounded-3xl overflow-hidden bg-slate-900 border border-white/5 group-hover:border-red-600/50 transition-all duration-300 shadow-lg">
+                      <img 
+                        src={item.image} 
+                        alt={item.nameAr} 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      
+                      {/* Floating ID */}
+                      <div className="absolute top-3 right-3 bg-red-600 text-white px-2 py-1 rounded-lg text-[9px] font-black shadow-lg border border-white/10">
+                        #{item.id}
                       </div>
                     </div>
-                    <h4 className="font-black text-slate-100 text-[10px] sm:text-xs mb-2 sm:mb-3 text-center line-clamp-1 px-1">{item.nameAr}</h4>
-                    <div className="mt-auto w-full py-1.5 sm:py-2 bg-slate-800 group-hover:bg-red-600 group-hover:text-white rounded-xl sm:rounded-2xl flex items-center justify-center transition-all border border-white/5">
-                      <span className="text-[10px] sm:text-xs font-black">#{item.id}</span>
+
+                    {/* Content */}
+                    <div className="px-1 space-y-0.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className="font-black text-slate-100 text-[11px] leading-tight group-hover:text-red-500 transition-colors line-clamp-1 flex-1">
+                          {item.nameAr}
+                        </h4>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-red-500">{item.price} ₪</span>
+                      </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </>
@@ -293,9 +353,10 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
             </div>
           ) : (
             <div className="flex-1 bg-slate-900 rounded-[2rem] sm:rounded-[3rem] border border-white/5 p-4 sm:p-10 overflow-y-auto custom-scrollbar">
-              <div className="max-w-3xl mx-auto space-y-6 sm:space-y-10">
+              <div className="max-w-3xl mx-auto space-y-12">
+                {/* Customer Section */}
                 <div className="space-y-6">
-                  <h4 className="text-base sm:text-lg font-black text-white">بيانات التواصل للزبون</h4>
+                  <h4 className="text-base sm:text-lg font-black text-white border-b border-white/5 pb-3">بيانات الزبون</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">اسم الزبون</label>
@@ -314,6 +375,35 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                         value={customerPhone}
                         onChange={(e) => setCustomerPhone(e.target.value)}
                         placeholder="059-000-0000"
+                        className="w-full p-3 sm:p-4 bg-slate-800 border border-white/5 rounded-2xl outline-none focus:ring-2 focus:ring-red-600 font-black text-xs sm:text-sm text-white transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Account Section */}
+                <div className="space-y-6">
+                  <h4 className="text-base sm:text-lg font-black text-white border-b border-white/5 pb-3">بيانات الحساب المالي</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">نوع الحساب</label>
+                      <select 
+                        value={accountType}
+                        onChange={(e) => setAccountType(e.target.value as any)}
+                        className="w-full p-3 sm:p-4 bg-slate-800 border border-white/5 rounded-2xl outline-none focus:ring-2 focus:ring-red-600 font-black text-xs sm:text-sm text-white transition-all appearance-none"
+                      >
+                        <option value="ACCOUNT">رقم حساب</option>
+                        <option value="SUPPLIER">رقم مورد</option>
+                        <option value="EMPLOYEE">رقم موظف</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">رقم الحساب / المعرف</label>
+                      <input 
+                        type="text" 
+                        value={accountNumber}
+                        onChange={(e) => setAccountNumber(e.target.value)}
+                        placeholder="أدخل الرقم هنا..."
                         className="w-full p-3 sm:p-4 bg-slate-800 border border-white/5 rounded-2xl outline-none focus:ring-2 focus:ring-red-600 font-black text-xs sm:text-sm text-white transition-all"
                       />
                     </div>
@@ -343,7 +433,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
               </button>
               {!isHospitality && (
                 <div className="flex bg-slate-800 p-1 rounded-xl overflow-x-auto scrollbar-hide">
-                  {([OrderType.DINE_IN, OrderType.TAKEAWAY, OrderType.DELIVERY]).map(type => (
+                  {([OrderType.DINE_IN, OrderType.TAKEAWAY]).map(type => (
                     <button
                       key={type}
                       onClick={() => setOrderType(type)}
@@ -351,7 +441,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                         cartOrderType === type ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'
                       }`}
                     >
-                      {type === OrderType.DINE_IN ? 'محلي' : type === OrderType.TAKEAWAY ? 'سفري' : 'توصيل'}
+                      {type === OrderType.DINE_IN ? 'محلي' : 'فوري'}
                     </button>
                   ))}
                 </div>
@@ -424,18 +514,18 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                       <td className="p-2 sm:p-3 text-center text-[10px] sm:text-xs font-bold text-slate-400">{item.price}</td>
                       <td className="p-2 sm:p-3">
                         <input 
-                          type="number"
+                          type="text"
                           value={item.quantity}
                           onChange={(e) => handleQuantityChange(item.uniqueId, e.target.value, item.price)}
-                          className="w-10 sm:w-12 bg-transparent text-center text-[10px] sm:text-xs font-black text-white outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-10 sm:w-12 bg-transparent text-center text-[10px] sm:text-xs font-black text-white outline-none"
                         />
                       </td>
                       <td className="p-2 sm:p-3 text-left">
                         <input 
-                          type="number"
-                          value={(item.price * item.quantity).toFixed(2)}
+                          type="text"
+                          value={Math.round(item.price * item.quantity * 100) / 100}
                           onChange={(e) => handleTotalChange(item.uniqueId, e.target.value, item.price)}
-                          className="w-16 sm:w-20 bg-transparent text-left text-[10px] sm:text-xs font-black text-red-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-16 sm:w-20 bg-transparent text-left text-[10px] sm:text-xs font-black text-red-500 outline-none"
                         />
                       </td>
                       <td className="p-2 sm:p-3 text-center">
@@ -500,7 +590,13 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
           <div className="grid grid-cols-2 gap-2 pt-1">
             {isHospitality ? (
               <button 
-                onClick={() => submitOrder(OrderStatus.CONFIRMED, PaymentMethod.CASH, 0, { name: customerName, phone: customerPhone, note: invoiceNote })}
+                onClick={() => {
+                  if (cartOrderType === OrderType.DINE_IN && !manualTable) {
+                    alert('يرجى إدخال رقم الطاولة أولاً');
+                    return;
+                  }
+                  submitOrder(OrderStatus.CONFIRMED, PaymentMethod.CASH, 0, { name: customerName, phone: customerPhone, note: invoiceNote });
+                }}
                 disabled={currentCart.length === 0}
                 className="col-span-2 py-3 sm:py-4 bg-red-600 text-white rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 hover:bg-red-700 shadow-xl shadow-red-900/20 disabled:opacity-30 transition-all active:scale-95"
               >
@@ -510,7 +606,13 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
             ) : (
               <>
                 <button 
-                  onClick={() => submitOrder(OrderStatus.PENDING, paymentMethod, 0, { name: customerName, phone: customerPhone, note: invoiceNote })}
+                  onClick={() => {
+                    if (cartOrderType === OrderType.DINE_IN && !manualTable) {
+                      alert('يرجى إدخال رقم الطاولة أولاً');
+                      return;
+                    }
+                    submitOrder(OrderStatus.PENDING, paymentMethod, 0, { name: customerName, phone: customerPhone, note: invoiceNote });
+                  }}
                   disabled={currentCart.length === 0}
                   className="py-2.5 sm:py-3 bg-slate-800 text-white rounded-xl font-black text-[9px] sm:text-[10px] flex items-center justify-center gap-1.5 hover:bg-slate-700 disabled:opacity-30 transition-all active:scale-95"
                 >
@@ -518,7 +620,17 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                   حفظ
                 </button>
                 <button 
-                  onClick={() => submitOrder(OrderStatus.DELIVERED, paymentMethod, 0, { name: customerName, phone: customerPhone, note: invoiceNote })}
+                  onClick={() => {
+                    if (cartOrderType === OrderType.DINE_IN && !manualTable) {
+                      alert('يرجى إدخال رقم الطاولة أولاً');
+                      return;
+                    }
+                    if (!customerName || (customerName === 'صندوق مبيعات' && paymentMethod !== PaymentMethod.CASH)) {
+                      setShowCustomerModal(true);
+                      return;
+                    }
+                    submitOrder(OrderStatus.DELIVERED, paymentMethod, 0, { name: customerName, phone: customerPhone, note: invoiceNote });
+                  }}
                   disabled={currentCart.length === 0}
                   className="py-2.5 sm:py-3 bg-red-600 text-white rounded-xl font-black text-[9px] sm:text-[10px] flex items-center justify-center gap-1.5 hover:bg-red-700 shadow-xl shadow-red-900/20 disabled:opacity-30 transition-all active:scale-95"
                 >
@@ -541,6 +653,64 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
           عرض السلة ({currentCart.length}) - {total.toFixed(2)} ₪
         </button>
       )}
+
+      {/* Customer Name Modal */}
+      <AnimatePresence>
+        {showCustomerModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-900 w-full max-w-sm rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden p-8 space-y-6"
+            >
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 bg-red-600/20 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Tag size={32} />
+                </div>
+                <h3 className="text-2xl font-black text-white">إغلاق الفاتورة</h3>
+                <p className="text-slate-500 font-bold text-sm">يرجى إدخال اسم الزبون لإتمام العملية</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">اسم الزبون</label>
+                  <input 
+                    type="text" 
+                    autoFocus
+                    value={customerName === 'صندوق مبيعات' ? '' : customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="أدخل اسم الزبون..."
+                    className="w-full p-4 bg-slate-800 border border-white/5 rounded-2xl outline-none focus:ring-2 focus:ring-red-600 font-black text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={() => {
+                    if (!customerName || customerName.trim() === '') {
+                      alert('يرجى إدخال اسم الزبون');
+                      return;
+                    }
+                    submitOrder(OrderStatus.DELIVERED, paymentMethod, 0, { name: customerName, phone: customerPhone, note: invoiceNote });
+                    setShowCustomerModal(false);
+                  }}
+                  className="w-full bg-red-600 text-white py-4 rounded-2xl font-black text-sm shadow-lg shadow-red-900/20 active:scale-95 transition-all"
+                >
+                  تأكيد وإغلاق الفاتورة
+                </button>
+                <button 
+                  onClick={() => setShowCustomerModal(false)}
+                  className="w-full bg-slate-800 text-slate-400 py-4 rounded-2xl font-black text-sm active:scale-95 transition-all"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

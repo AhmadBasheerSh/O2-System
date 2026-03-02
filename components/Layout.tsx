@@ -23,7 +23,9 @@ import {
   Activity,
   Plus,
   Utensils,
-  ChefHat
+  ChefHat,
+  PlayCircle,
+  TrendingUp
 } from 'lucide-react';
 
 interface SidebarItemProps {
@@ -127,14 +129,18 @@ export const AppLayout: React.FC<{
               />
               <SidebarItem 
                 icon={ChefHat} label="شاشة الأقسام" 
-                active={activeView === 'departments'} collapsed={isCollapsed} onClick={() => setActiveView('departments')} 
+                active={activeView === 'dept_orders'} collapsed={isCollapsed} onClick={() => setActiveView('dept_orders')} 
               />
             </>
           ) : isDeptStaff ? (
             <>
               <SidebarItem 
-                icon={ChefHat} label="لوحة تحكم القسم" 
-                active={activeView === 'departments'} collapsed={isCollapsed} onClick={() => setActiveView('departments')} 
+                icon={LayoutDashboard} label="لوحة التحكم" 
+                active={activeView === 'dept_dashboard'} collapsed={isCollapsed} onClick={() => setActiveView('dept_dashboard')} 
+              />
+              <SidebarItem 
+                icon={PlayCircle} label="الطلبات النشطة" 
+                active={activeView === 'dept_orders'} collapsed={isCollapsed} onClick={() => setActiveView('dept_orders')} 
               />
             </>
           ) : isAggregator ? (
@@ -179,11 +185,24 @@ export const AppLayout: React.FC<{
         </nav>
 
         <div className="mt-auto border-t border-white/5 pt-4 space-y-2">
+          {isHospitality && !isCollapsed && (
+            <div className="px-4 mb-4 space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-red-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-red-900/10 rotate-3">
+                  <HeartHandshake size={12} />
+                </div>
+                <h2 className="text-sm font-black text-white tracking-tight">قسم الضيافة</h2>
+              </div>
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">إدارة الخدمة والزبائن</p>
+            </div>
+          )}
           {!isCollapsed && (
             <div className="px-4 py-2">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">
-                {isAdmin ? 'الإدارة العامة' : isBranchManager ? `مدير: ${branches.find(b => b.id === currentUser?.branchId)?.name}` : isHospitality ? 'قسم الضيافة' : isDeptStaff ? 'موظف قسم' : isAggregator ? 'مجمع طلبات' : 'الكاشير'}
-              </p>
+              {!isHospitality && (
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">
+                  {isAdmin ? 'الإدارة العامة' : isBranchManager ? `مدير: ${branches.find(b => b.id === currentUser?.branchId)?.name}` : isDeptStaff ? 'موظف قسم' : isAggregator ? 'مجمع طلبات' : 'الكاشير'}
+                </p>
+              )}
               <p className="text-sm font-black text-slate-100 truncate">{currentUser?.name}</p>
             </div>
           )}

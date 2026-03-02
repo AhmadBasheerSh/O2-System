@@ -28,7 +28,7 @@ const Main: React.FC = () => {
     } else if (userRole === 'HOSPITALITY') {
       setActiveView('hospitality_tables');
     } else if (userRole === 'DEPARTMENT_STAFF') {
-      setActiveView('departments');
+      setActiveView('dept_dashboard');
     } else if (userRole === 'ORDER_AGGREGATOR') {
       setActiveView('aggregator_dashboard');
     } else if (editingOrderId) {
@@ -79,6 +79,8 @@ const Main: React.FC = () => {
       case 'hospitality_tracking': return <HospitalityView initialTab="tracking" setActiveView={setActiveView} />;
       case 'hospitality_feedback': return <HospitalityView initialTab="feedback" setActiveView={setActiveView} />;
       case 'hospitality_tasks': return <HospitalityView initialTab="tasks" setActiveView={setActiveView} />;
+      case 'dept_dashboard': return <DepartmentView initialView="DASHBOARD" />;
+      case 'dept_orders': return <DepartmentView initialView="ORDERS" />;
       case 'departments': return <DepartmentView />;
       case 'aggregator_dashboard': return <OrderAggregatorDashboard />;
       case 'aggregator_shelves': return <ShelfGridView />;

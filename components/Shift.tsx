@@ -24,13 +24,19 @@ export const ShiftView: React.FC = () => {
                 type="number" 
                 value={balance}
                 onChange={(e) => setBalance(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && balance) {
+                    openShift(Number(balance));
+                  }
+                }}
                 placeholder="0.00"
-                className="w-full px-4 py-3 bg-slate-800 border border-white/5 rounded-xl focus:ring-2 focus:ring-red-600 outline-none text-center text-xl font-bold text-white"
+                className="w-full px-4 py-3 bg-slate-800 border border-white/5 rounded-xl focus:ring-2 focus:ring-red-600 outline-none text-center text-xl font-bold text-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
             <button 
               onClick={() => openShift(Number(balance))}
-              className="w-full py-4 bg-red-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-lg shadow-red-900/20"
+              disabled={!balance}
+              className="w-full py-4 bg-red-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-red-700 transition-all shadow-lg shadow-red-900/20 disabled:opacity-50"
             >
               فتح الشفت الآن
               <ArrowRightCircle size={20} className="rotate-180" />
@@ -43,14 +49,14 @@ export const ShiftView: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-950 rounded-[3rem] custom-scrollbar">
-      <header className="flex justify-between items-center bg-slate-900 p-6 rounded-2xl border border-white/5">
+      <header className="flex justify-between items-center bg-slate-900 p-6 rounded-2xl border border-white/5 shadow-2xl">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-green-100 text-green-600 rounded-xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center border border-emerald-500/20">
             <Clock size={24} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-800">الشفت نشط</h2>
-            <p className="text-sm text-slate-500">بدأ منذ: {new Date(currentShift.startTime).toLocaleTimeString('ar-EG')}</p>
+            <h2 className="text-xl font-black text-white">الشفت نشط</h2>
+            <p className="text-sm text-slate-500 font-bold">بدأ منذ: {new Date(currentShift.startTime).toLocaleTimeString('ar-EG')}</p>
           </div>
         </div>
         <button 
@@ -58,7 +64,7 @@ export const ShiftView: React.FC = () => {
             const final = prompt('أدخل المبلغ النهائي في الصندوق');
             if (final) closeShift(Number(final));
           }}
-          className="px-6 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold flex items-center gap-2 hover:bg-red-100 transition-colors"
+          className="px-6 py-3 bg-red-600 text-white rounded-xl font-black text-xs flex items-center gap-2 hover:bg-red-700 transition-all shadow-lg shadow-red-900/20 active:scale-95"
         >
           <LogOut size={18} />
           إغلاق الشفت

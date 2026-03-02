@@ -179,6 +179,7 @@ export enum TableStatus {
   AVAILABLE = 'AVAILABLE',
   OCCUPIED = 'OCCUPIED',
   PAYMENT_PENDING = 'PAYMENT_PENDING',
+  PAID = 'PAID',
   RESERVED = 'RESERVED',
   CLEANING = 'CLEANING'
 }
@@ -196,6 +197,8 @@ export interface Table {
   hallId: string;
   currentOrderId?: string;
   seatedAt?: Date;
+  guestCount?: number;
+  mergedWithId?: string;
   reservationName?: string;
   reservationTime?: string;
   position: { x: number; y: number };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../store';
-import { TableStatus, OrderStatus, CustomerFeedback, StaffTask } from '../types';
+import { TableStatus, OrderStatus, CustomerFeedback, StaffTask, OrderType } from '../types';
 import { DEPARTMENTS } from '../constants';
 import { 
   Users, Utensils, MessageSquare, ClipboardList, 
@@ -19,7 +19,7 @@ export const HospitalityView: React.FC<{
     tables, activeOrders, employees, feedbacks, addFeedback, 
     staffTasks, addTask, updateTask, tableAssignments, assignTable,
     confirmOrder, voidOrder, deliverOrder, updateOrderStatus, loadOrderToPOS,
-    notifications, markNotificationRead
+    notifications, markNotificationRead, setOrderType
   } = useApp();
   
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -69,67 +69,7 @@ export const HospitalityView: React.FC<{
   };
 
   return (
-    <div className="h-full flex flex-col space-y-6 bg-slate-950 p-4 sm:p-6 lg:p-8 rounded-[3rem] overflow-hidden">
-      {/* Header with Notifications */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-900/20 rotate-3">
-            <HeartHandshake size={24} />
-          </div>
-          <div>
-            <h2 className="text-2xl font-black text-white tracking-tight">قسم الضيافة</h2>
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">إدارة الخدمة والزبائن</p>
-          </div>
-        </div>
-
-        <div className="relative">
-          <button 
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="p-4 rounded-2xl bg-slate-900 border border-white/5 text-slate-400 hover:text-white transition-all relative"
-          >
-            <Bell size={24} />
-            {notifications.filter(n => !n.read).length > 0 && (
-              <span className="absolute top-3 right-3 w-3 h-3 bg-red-600 rounded-full border-2 border-slate-950 animate-bounce" />
-            )}
-          </button>
-
-          <AnimatePresence>
-            {showNotifications && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                className="absolute left-0 mt-4 w-80 bg-slate-900 rounded-[2rem] border border-white/10 shadow-2xl z-50 overflow-hidden"
-              >
-                <div className="p-5 border-b border-white/5 flex justify-between items-center bg-slate-800/50">
-                  <h4 className="text-sm font-black text-white">التنبيهات</h4>
-                  <span className="text-[10px] font-black text-slate-500">{notifications.length} تنبيه</span>
-                </div>
-                <div className="max-h-96 overflow-y-auto custom-scrollbar">
-                  {notifications.length > 0 ? (
-                    notifications.map(n => (
-                      <div 
-                        key={n.id} 
-                        onClick={() => markNotificationRead(n.id)}
-                        className={`p-4 border-b border-white/5 cursor-pointer transition-colors hover:bg-slate-800/50 ${!n.read ? 'bg-red-600/5' : ''}`}
-                      >
-                        <p className={`text-xs font-bold ${!n.read ? 'text-white' : 'text-slate-400'}`}>{n.message}</p>
-                        <p className="text-[10px] text-slate-600 mt-1">{n.time.toLocaleTimeString('ar-PS')}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-10 text-center opacity-20">
-                      <Bell size={32} className="mx-auto mb-2" />
-                      <p className="text-xs font-black">لا توجد تنبيهات</p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-      
+    <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-1 overflow-hidden">
         <AnimatePresence mode="wait">
           {activeTab === 'tables' && (
@@ -150,7 +90,7 @@ export const HospitalityView: React.FC<{
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="h-full flex flex-col space-y-6"
+              className="h-full flex flex-col space-y-6 bg-slate-950 p-4 sm:p-6 lg:p-8 rounded-[3rem]"
             >
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-black text-white">طلبات الزبائن الجديدة (QR)</h3>
@@ -161,7 +101,10 @@ export const HospitalityView: React.FC<{
 
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {activeOrders.filter(o => o.status === OrderStatus.PENDING_CONFIRMATION).map(order => (
+                  {activeOrders
+                    .filter(o => o.type === OrderType.DINE_IN)
+                    .filter(o => o.status === OrderStatus.PENDING_CONFIRMATION)
+                    .map(order => (
                     <div key={order.id} className="bg-slate-900 rounded-[2.5rem] border border-white/5 shadow-2xl hover:border-orange-500/30 transition-all group overflow-hidden flex flex-col">
                       <div className="p-6 flex-1 space-y-6">
                         <div className="flex justify-between items-start">
@@ -248,7 +191,10 @@ export const HospitalityView: React.FC<{
                         <button 
                           onClick={() => {
                             loadOrderToPOS(order);
-                            setActiveView?.('hospitality_pos');
+                            setOrderType(order.type);
+                            setTimeout(() => {
+                              setActiveView?.('hospitality_pos');
+                            }, 100);
                           }}
                           className="flex-1 bg-slate-800 border border-white/5 text-slate-300 py-3 rounded-xl font-black text-xs hover:bg-slate-700 flex items-center justify-center gap-2 transition-all active:scale-95"
                         >
@@ -280,7 +226,7 @@ export const HospitalityView: React.FC<{
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="h-full flex flex-col space-y-6"
+              className="h-full flex flex-col space-y-6 bg-slate-950 p-4 sm:p-6 lg:p-8 rounded-[3rem]"
             >
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-black text-white">تتبع الطلبات النشطة</h3>
@@ -315,6 +261,7 @@ export const HospitalityView: React.FC<{
               <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {activeOrders
+                    .filter(o => o.type === OrderType.DINE_IN)
                     .filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED && o.status !== OrderStatus.PENDING_CONFIRMATION)
                     .filter(o => trackingFilter === 'ALL' || o.status === trackingFilter)
                     .map(order => (
@@ -407,7 +354,10 @@ export const HospitalityView: React.FC<{
                         <button 
                           onClick={() => {
                             loadOrderToPOS(order);
-                            setActiveView?.('hospitality_pos');
+                            setOrderType(order.type);
+                            setTimeout(() => {
+                              setActiveView?.('hospitality_pos');
+                            }, 100);
                           }}
                           className="flex-1 bg-slate-800 border border-white/5 text-slate-300 py-3 rounded-xl font-black text-xs hover:bg-slate-700 flex items-center justify-center gap-2 transition-all active:scale-95"
                         >
@@ -433,7 +383,7 @@ export const HospitalityView: React.FC<{
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="h-full flex flex-col space-y-6"
+              className="h-full flex flex-col space-y-6 bg-slate-950 p-4 sm:p-6 lg:p-8 rounded-[3rem]"
             >
               <div className="flex justify-between items-center">
                  <h3 className="text-xl font-black text-white">سجل الشكاوي والملاحظات</h3>
@@ -492,7 +442,7 @@ export const HospitalityView: React.FC<{
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="h-full flex flex-col space-y-6"
+              className="h-full flex flex-col space-y-6 bg-slate-950 p-4 sm:p-6 lg:p-8 rounded-[3rem]"
             >
               <div className="flex justify-between items-center">
                  <h3 className="text-xl font-black text-white">توزيع المهام والجداول</h3>

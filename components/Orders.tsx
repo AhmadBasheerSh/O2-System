@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../store';
-import { OrderStatus, Order, PaymentMethod, FinancialTransactionType } from '../types';
+import { OrderStatus, Order, PaymentMethod, FinancialTransactionType, OrderType } from '../types';
 import { DEPARTMENTS } from '../constants';
 import { 
   Clock, CheckCircle2, XCircle, Edit3, Eye, Search, 
@@ -13,6 +13,7 @@ export const OrdersView: React.FC = () => {
   const { activeOrders, voidOrder, completeOrder, loadOrderToPOS, currentShift, addFinancialTransaction, currentUser } = useApp();
   const [activeTab, setActiveTab] = useState<'ACTIVE' | 'CLOSED'>('ACTIVE');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<OrderType | 'ALL'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
   const getStatusColor = (status: OrderStatus) => {
@@ -67,12 +68,13 @@ export const OrdersView: React.FC = () => {
       : order.status === OrderStatus.DELIVERED || order.status === OrderStatus.CANCELED;
     
     const matchesStatus = statusFilter === 'ALL' || order.status === statusFilter;
+    const matchesType = typeFilter === 'ALL' || order.type === typeFilter;
 
     const matchesSearch = order.orderNumber.includes(searchTerm) || 
                          (order.customerName?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          (order.customerPhone?.includes(searchTerm));
     
-    return matchesTab && matchesStatus && matchesSearch;
+    return matchesTab && matchesStatus && matchesType && matchesSearch;
   });
 
   const handleEditOrder = (order: Order) => {
@@ -116,7 +118,7 @@ export const OrdersView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 bg-slate-950 h-full overflow-y-auto rounded-[3rem] custom-scrollbar">
+    <div className="space-y-8 w-full p-4 sm:p-6 lg:p-8 bg-slate-950 h-full overflow-y-auto rounded-[3rem] custom-scrollbar">
       <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div className="space-y-1">
           <h2 className="text-4xl font-black text-white tracking-tight">إدارة الطلبات</h2>
@@ -155,28 +157,26 @@ export const OrdersView: React.FC = () => {
           </button>
         </div>
 
-        {activeTab === 'ACTIVE' && (
-          <div className="flex bg-slate-900 p-1 rounded-2xl border border-white/5 shadow-xl">
-            <button 
-              onClick={() => setStatusFilter('ALL')}
-              className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${statusFilter === 'ALL' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              الكل
-            </button>
-            <button 
-              onClick={() => setStatusFilter(OrderStatus.PREPARING)}
-              className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${statusFilter === OrderStatus.PREPARING ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              في المطبخ
-            </button>
-            <button 
-              onClick={() => setStatusFilter(OrderStatus.READY)}
-              className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${statusFilter === OrderStatus.READY ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/20' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              جاهزة للاستلام
-            </button>
-          </div>
-        )}
+        <div className="flex bg-slate-900 p-1 rounded-xl border border-white/5 w-fit shadow-2xl">
+          <button 
+            onClick={() => setTypeFilter('ALL')}
+            className={`w-12 h-9 flex items-center justify-center rounded-lg font-black text-[10px] transition-all ${typeFilter === 'ALL' ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            الكل
+          </button>
+          <button 
+            onClick={() => setTypeFilter(OrderType.DINE_IN)}
+            className={`w-12 h-9 flex items-center justify-center rounded-lg font-black text-[10px] transition-all ${typeFilter === OrderType.DINE_IN ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            محلي
+          </button>
+          <button 
+            onClick={() => setTypeFilter(OrderType.TAKEAWAY)}
+            className={`w-12 h-9 flex items-center justify-center rounded-lg font-black text-[10px] transition-all ${typeFilter === OrderType.TAKEAWAY ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            فوري
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -209,13 +209,11 @@ export const OrdersView: React.FC = () => {
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-black text-slate-200">{item.name}</span>
-                            {item.departmentId && (
-                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-slate-700 text-slate-400 border border-white/5">
-                                {DEPARTMENTS.find(d => d.id === item.departmentId)?.name}
-                              </span>
-                            )}
+                            <span className="text-[10px] font-black bg-red-600/20 text-red-500 px-1.5 py-0.5 rounded">x{item.quantity}</span>
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500">الكمية: {item.quantity}</span>
+                          <span className="text-[10px] font-bold text-slate-500">
+                            {DEPARTMENTS.find(d => d.id === item.departmentId)?.name || 'عام'}
+                          </span>
                         </div>
                         <span className="text-xs font-black text-white">{(item.price * item.quantity).toFixed(2)} ₪</span>
                       </div>
@@ -224,20 +222,29 @@ export const OrdersView: React.FC = () => {
               </div>
 
               {/* Order Info Grid */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+              <div className="grid grid-cols-3 gap-2 pt-4 border-t border-white/5">
                 <div className="space-y-1">
                    <div className="flex items-center gap-1.5 text-slate-500">
                     <Clock size={12} />
-                    <span className="text-[10px] font-black uppercase tracking-widest">الوقت</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest">الوقت</span>
                   </div>
-                  <p className="text-xs font-black text-slate-300">{new Date(order.createdAt).toLocaleTimeString('ar-EG')}</p>
+                  <p className="text-[10px] font-black text-slate-300">{new Date(order.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
                 <div className="space-y-1">
                    <div className="flex items-center gap-1.5 text-slate-500">
                     {getPaymentIcon(order.paymentMethod)}
-                    <span className="text-[10px] font-black uppercase tracking-widest">الدفع</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest">الدفع</span>
                   </div>
-                  <p className="text-xs font-black text-slate-300">{getPaymentLabel(order.paymentMethod)}</p>
+                  <p className="text-[10px] font-black text-slate-300">{getPaymentLabel(order.paymentMethod)}</p>
+                </div>
+                <div className="space-y-1">
+                   <div className="flex items-center gap-1.5 text-slate-500">
+                    <Hash size={12} />
+                    <span className="text-[9px] font-black uppercase tracking-widest">طاولة</span>
+                  </div>
+                  <p className="text-[10px] font-black text-red-500">
+                    {order.type === OrderType.DINE_IN ? `${order.tableId?.replace('t-', '') || '---'}` : 'فوري'}
+                  </p>
                 </div>
               </div>
 
@@ -298,7 +305,16 @@ export const OrdersView: React.FC = () => {
                       <Edit3 size={16} /> تعديل
                     </button>
                     <button 
-                      onClick={() => completeOrder(order.id, { method: order.paymentMethod || PaymentMethod.CASH })}
+                      onClick={() => {
+                        if (!order.customerName) {
+                          const name = prompt('يرجى إدخال اسم الزبون لإغلاق الفاتورة:');
+                          if (!name) return;
+                          // In a real app we'd update the order, here we'll just proceed if name is provided
+                          completeOrder(order.id, { method: order.paymentMethod || PaymentMethod.CASH });
+                        } else {
+                          completeOrder(order.id, { method: order.paymentMethod || PaymentMethod.CASH });
+                        }
+                      }}
                       className="flex-1 bg-red-600 text-white py-3.5 rounded-2xl font-black text-xs hover:bg-red-700 flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-900/20 active:scale-95"
                     >
                       <CheckCircle2 size={16} /> إغلاق

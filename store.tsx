@@ -83,6 +83,7 @@ interface AppContextType {
   
   tableAssignments: TableAssignment[];
   assignTable: (tableId: string, staffId: string) => void;
+  seatTable: (tableId: string, guestCount: number) => void;
 
   notifications: { id: string; message: string; time: Date; read: boolean }[];
   addNotification: (message: string) => void;
@@ -130,7 +131,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<'CASHIER' | 'CUSTOMER' | 'WAITER' | 'ADMIN' | 'BRANCH_MANAGER' | 'HOSPITALITY' | 'DEPARTMENT_STAFF' | 'ORDER_AGGREGATOR' | null>(null);
   const [currentCart, setCurrentCart] = useState<OrderItem[]>([]);
-  const [cartOrderType, setCartOrderType] = useState<OrderType>(OrderType.DELIVERY);
+  const [cartOrderType, setCartOrderType] = useState<OrderType>(OrderType.TAKEAWAY);
   const [currentShift, setCurrentShift] = useState<Shift | null>(null);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [tables, setTables] = useState<Table[]>(TABLES);
@@ -251,7 +252,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  const logout = () => { setCurrentUser(null); setUserRole(null); setCurrentShift(null); };
+  const logout = () => { setCurrentUser(null); setUserRole(null); };
   const openShift = (openingBalance: number) => {
     if (!currentUser) return;
     setCurrentShift({ id: 'sh_' + Math.random().toString(36).substr(2, 5), cashierId: currentUser.id, startTime: new Date(), openingBalance, status: 'OPEN' });
@@ -301,6 +302,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  const seatTable = (tableId: string, guestCount: number) => {
+    setTables(prev => prev.map(t => t.id === tableId ? { 
+      ...t, 
+      status: TableStatus.OCCUPIED, 
+      seatedAt: new Date(), 
+      guestCount 
+    } : t));
+  };
+
   const depositToWallet = (amount: number, bonus: number = 0) => {
     if (!currentUser) return;
     const totalDeposit = amount + bonus;
@@ -317,7 +327,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateTableStatus = (tableId: string, status: TableStatus, extra?: Partial<Table>) => {
-    setTables(prev => prev.map(t => t.id === tableId ? { ...t, status, ...extra } : t));
+    setTables(prev => {
+      const tableToUpdate = prev.find(t => t.id === tableId);
+      if (!tableToUpdate) return prev;
+
+      // If clearing a table (setting to AVAILABLE or CLEANING), clear all merged tables too
+      if (status === TableStatus.AVAILABLE || status === TableStatus.CLEANING || status === TableStatus.PAID || status === TableStatus.PAYMENT_PENDING) {
+        const masterId = tableToUpdate.mergedWithId || tableToUpdate.id;
+        return prev.map(t => {
+          if (t.id === masterId || t.mergedWithId === masterId) {
+            const isClearing = status === TableStatus.AVAILABLE || status === TableStatus.CLEANING;
+            return { 
+              ...t, 
+              status, 
+              currentOrderId: isClearing ? undefined : (t.currentOrderId || extra?.currentOrderId), 
+              seatedAt: isClearing ? undefined : (t.seatedAt || extra?.seatedAt), 
+              guestCount: isClearing ? undefined : (t.guestCount || extra?.guestCount),
+              mergedWithId: isClearing ? undefined : t.mergedWithId,
+              reservationName: isClearing ? undefined : t.reservationName,
+              reservationTime: isClearing ? undefined : t.reservationTime,
+              ...extra 
+            };
+          }
+          return t;
+        });
+      }
+
+      // Otherwise just update the single table
+      return prev.map(t => t.id === tableId ? { ...t, status, ...extra } : t);
+    });
   };
 
   const transferTable = (fromId: string, toId: string) => {
@@ -325,16 +363,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const toTable = tables.find(t => t.id === toId);
     if (!fromTable || !toTable || fromTable.status !== TableStatus.OCCUPIED) return;
 
-    const order = activeOrders.find(o => o.id === fromTable.currentOrderId);
-    if (!order) return;
-
-    // Move order to new table
-    setActiveOrders(prev => prev.map(o => o.id === order.id ? { ...o, tableId: toId } : o));
+    const orderId = fromTable.currentOrderId;
+    
+    // Move order to new table if exists
+    if (orderId) {
+      setActiveOrders(prev => prev.map(o => o.id === orderId ? { ...o, tableId: toId } : o));
+    }
     
     // Update tables
     setTables(prev => prev.map(t => {
-      if (t.id === fromId) return { ...t, status: TableStatus.CLEANING, currentOrderId: undefined, seatedAt: undefined };
-      if (t.id === toId) return { ...t, status: TableStatus.OCCUPIED, currentOrderId: order.id, seatedAt: fromTable.seatedAt };
+      if (t.id === fromId) return { ...t, status: TableStatus.CLEANING, currentOrderId: undefined, seatedAt: undefined, guestCount: undefined };
+      if (t.id === toId) return { ...t, status: TableStatus.OCCUPIED, currentOrderId: orderId, seatedAt: fromTable.seatedAt, guestCount: fromTable.guestCount };
       return t;
     }));
   };
@@ -347,30 +386,68 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetTable = tables.find(t => t.id === targetTableId);
     if (!targetTable) return;
 
-    const targetOrder = activeOrders.find(o => o.id === targetTable.currentOrderId);
-    if (!targetOrder) return;
+    let mergedItems: OrderItem[] = [];
+    let totalGuestCount = targetTable.guestCount || 0;
+    let masterOrderId = targetTable.currentOrderId;
+    let earliestSeatedAt = targetTable.seatedAt;
 
-    let mergedItems = [...targetOrder.items];
+    // If target has an order, start with its items
+    if (masterOrderId) {
+      const targetOrder = activeOrders.find(o => o.id === masterOrderId);
+      if (targetOrder) {
+        mergedItems = [...targetOrder.items];
+      }
+    }
 
     otherTableIds.forEach(id => {
       const table = tables.find(t => t.id === id);
-      if (table && table.currentOrderId) {
-        const order = activeOrders.find(o => o.id === table.currentOrderId);
-        if (order) {
-          mergedItems = [...mergedItems, ...order.items];
-          // Cancel the other order
-          setActiveOrders(prev => prev.filter(o => o.id !== order.id));
+      if (table) {
+        totalGuestCount += (table.guestCount || 0);
+        if (table.seatedAt && (!earliestSeatedAt || table.seatedAt < earliestSeatedAt)) {
+          earliestSeatedAt = table.seatedAt;
+        }
+        if (table.currentOrderId) {
+          const order = activeOrders.find(o => o.id === table.currentOrderId);
+          if (order) {
+            mergedItems = [...mergedItems, ...order.items];
+            // If we didn't have a master order yet, take this one
+            if (!masterOrderId) {
+              masterOrderId = order.id;
+            } else {
+              // Otherwise cancel the other order
+              setActiveOrders(prev => prev.filter(o => o.id !== order.id));
+            }
+          }
         }
       }
     });
 
-    // Update target order
-    const subtotal = mergedItems.reduce((s, i) => s + (i.price * i.quantity), 0);
-    setActiveOrders(prev => prev.map(o => o.id === targetOrder.id ? { ...o, items: mergedItems, subtotal, total: subtotal - o.discount } : o));
+    // If no order existed at all, we might need to create one or just update table guest counts
+    // But usually merge is done when there's at least one order or guests seated.
+    
+    if (masterOrderId) {
+      const subtotal = mergedItems.reduce((s, i) => s + (i.price * i.quantity), 0);
+      setActiveOrders(prev => prev.map(o => o.id === masterOrderId ? { 
+        ...o, 
+        items: mergedItems, 
+        subtotal, 
+        total: subtotal - o.discount,
+        tableId: targetTableId // Ensure it's linked to the master table
+      } : o));
+    }
 
-    // Update tables
+    // Update all tables to be OCCUPIED and linked to the master order
     setTables(prev => prev.map(t => {
-      if (otherTableIds.includes(t.id)) return { ...t, status: TableStatus.CLEANING, currentOrderId: undefined, seatedAt: undefined };
+      if (tableIds.includes(t.id)) {
+        return { 
+          ...t, 
+          status: TableStatus.OCCUPIED, 
+          currentOrderId: masterOrderId, 
+          guestCount: t.id === targetTableId ? totalGuestCount : 0, // Master table holds total count
+          seatedAt: earliestSeatedAt || new Date(),
+          mergedWithId: t.id === targetTableId ? undefined : targetTableId
+        };
+      }
       return t;
     }));
   };
@@ -392,18 +469,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     if (paymentMethod === PaymentMethod.WALLET && currentUser.balance < total) return alert('الرصيد غير كافٍ');
     
+    // Check if we should merge with an existing table order
+    if (selectedTable && selectedTable.status === TableStatus.OCCUPIED && selectedTable.currentOrderId && !editingOrderId) {
+      const existingOrder = activeOrders.find(o => o.id === selectedTable.currentOrderId);
+      if (existingOrder) {
+        const updatedItems = [...existingOrder.items, ...currentCart];
+        const updatedSubtotal = updatedItems.reduce((s, i) => s + (i.price * i.quantity), 0);
+        const updatedTotal = updatedSubtotal - existingOrder.discount;
+
+        setActiveOrders(p => p.map(o => o.id === existingOrder.id ? {
+          ...o,
+          items: updatedItems,
+          subtotal: updatedSubtotal,
+          total: updatedTotal,
+          timeline: [...o.timeline, { status: o.status, time: new Date() }]
+        } : o));
+
+        setCurrentCart([]); setEditingOrderId(null); setSelectedTable(null);
+        return;
+      }
+    }
+
     const existingOrder = editingOrderId ? activeOrders.find(o => o.id === editingOrderId) : null;
     const orderId = editingOrderId || Math.random().toString(36).substr(2, 9);
     
     // Determine status: 
     // 1. If customer, always PENDING_CONFIRMATION
-    // 2. If staff editing, keep existing status unless it was PENDING_CONFIRMATION
-    // 3. If new staff order, use status passed from POS (usually PENDING or DELIVERED)
+    // 2. If explicitly closing or canceling, use that status
+    // 3. If staff editing, keep existing status unless it was PENDING_CONFIRMATION
+    // 4. If new staff order, use status passed from POS (usually PENDING or DELIVERED)
     let finalStatus = status;
     if (userRole === 'CUSTOMER') {
       finalStatus = OrderStatus.PENDING_CONFIRMATION;
     } else if (existingOrder) {
-      finalStatus = existingOrder.status === OrderStatus.PENDING_CONFIRMATION ? OrderStatus.CONFIRMED : existingOrder.status;
+      if (status === OrderStatus.DELIVERED || status === OrderStatus.CANCELED) {
+        finalStatus = status;
+      } else {
+        finalStatus = existingOrder.status === OrderStatus.PENDING_CONFIRMATION ? OrderStatus.CONFIRMED : existingOrder.status;
+      }
     }
     
     const newOrder: Order = {
@@ -439,9 +542,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Update table status if it's a dine-in order
     if (selectedTable) {
-      updateTableStatus(selectedTable.id, TableStatus.OCCUPIED, { 
+      const tableStatus = finalStatus === OrderStatus.DELIVERED ? TableStatus.PAID : TableStatus.OCCUPIED;
+      updateTableStatus(selectedTable.id, tableStatus, { 
         currentOrderId: orderId, 
-        seatedAt: selectedTable.seatedAt || new Date() 
+        seatedAt: selectedTable.status === TableStatus.PAID ? new Date() : (selectedTable.seatedAt || new Date()) 
       });
     }
 
@@ -451,9 +555,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const completeOrder = (orderId: string, payment: { method: string | PaymentMethod }) => {
     setActiveOrders(prev => prev.map(o => {
       if (o.id === orderId) {
-        // If it was a dine-in order, set table to cleaning
+        // If it was a dine-in order, set table to PAID
         if (o.tableId) {
-          updateTableStatus(o.tableId, TableStatus.CLEANING, { currentOrderId: undefined, seatedAt: undefined });
+          updateTableStatus(o.tableId, TableStatus.PAID);
         }
         return { ...o, status: OrderStatus.DELIVERED, paymentMethod: payment.method as PaymentMethod };
       }
@@ -501,18 +605,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addToCart = (item: MenuItem, customization?: any) => {
-    const newOrderItem: OrderItem = { 
-      itemId: item.id, 
-      uniqueId: Math.random().toString(36).substr(2, 9), 
-      name: item.nameAr, 
-      quantity: 1, 
-      basePrice: item.price, 
-      price: item.price, 
-      departmentId: item.departmentId,
-      status: OrderStatus.PREPARING,
-      ...customization 
-    };
-    setCurrentCart(prev => [...prev, newOrderItem]);
+    setCurrentCart(prev => {
+      const existingItemIndex = prev.findIndex(i => i.itemId === item.id && !customization);
+      if (existingItemIndex > -1) {
+        const newCart = [...prev];
+        newCart[existingItemIndex] = {
+          ...newCart[existingItemIndex],
+          quantity: newCart[existingItemIndex].quantity + 1
+        };
+        return newCart;
+      }
+
+      const newOrderItem: OrderItem = { 
+        itemId: item.id, 
+        uniqueId: Math.random().toString(36).substr(2, 9), 
+        name: item.nameAr, 
+        quantity: 1, 
+        basePrice: item.price, 
+        price: item.price, 
+        departmentId: item.departmentId,
+        status: OrderStatus.PREPARING,
+        ...customization 
+      };
+      return [...prev, newOrderItem];
+    });
   };
   const removeFromCart = (uniqueId: string) => setCurrentCart(prev => prev.filter(i => i.uniqueId !== uniqueId));
   const updateCartQuantity = (uniqueId: string, delta: number) => setCurrentCart(prev => prev.map(i => i.uniqueId === uniqueId ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i));
@@ -625,6 +741,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       notifications, addNotification, markNotificationRead,
       staffTasks, addTask, updateTask,
       tableAssignments, assignTable,
+      seatTable,
       reorder
     }}>
       {children}

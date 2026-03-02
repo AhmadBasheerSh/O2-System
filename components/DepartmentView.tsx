@@ -10,12 +10,16 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const DepartmentView: React.FC = () => {
+export const DepartmentView: React.FC<{ initialView?: 'DASHBOARD' | 'ORDERS' }> = ({ initialView = 'DASHBOARD' }) => {
   const { activeOrders, updateOrderItemStatus, currentUser, userRole, logout, tables, departments } = useApp();
   const [selectedDeptId, setSelectedDeptId] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeView, setActiveView] = useState<'DASHBOARD' | 'ORDERS'>('DASHBOARD');
+  const [activeView, setActiveView] = useState<'DASHBOARD' | 'ORDERS'>(initialView);
+
+  useEffect(() => {
+    setActiveView(initialView);
+  }, [initialView]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -163,23 +167,7 @@ export const DepartmentView: React.FC = () => {
         </div>
       </header>
 
-      {/* Navigation Tabs */}
-      {!isHospitality && (
-        <div className="flex bg-slate-900 p-1 rounded-2xl border border-white/5 shadow-xl w-fit">
-          <button 
-            onClick={() => setActiveView('DASHBOARD')}
-            className={`px-8 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${activeView === 'DASHBOARD' ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            <TrendingUp size={18} /> لوحة التحكم
-          </button>
-          <button 
-            onClick={() => setActiveView('ORDERS')}
-            className={`px-8 py-2.5 rounded-xl text-sm font-black transition-all flex items-center gap-2 ${activeView === 'ORDERS' ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            <PlayCircle size={18} /> الطلبات النشطة
-          </button>
-        </div>
-      )}
+      {/* Navigation Tabs - Removed as they are now in the sidebar */}
 
       {activeView === 'DASHBOARD' && !isHospitality ? (
         <div className="flex-1 flex flex-col space-y-6 overflow-hidden">
