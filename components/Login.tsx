@@ -19,6 +19,7 @@ export const Login: React.FC = () => {
     else if (mode === 'HOSPITALITY') login(name, 'HOSPITALITY');
     else if (mode === 'DEPARTMENT_STAFF') login(name, 'DEPARTMENT_STAFF', '', selectedBranch, selectedDept);
     else if (mode === 'ORDER_AGGREGATOR') login(name, 'ORDER_AGGREGATOR', '', selectedBranch);
+    else if (mode === 'EMPLOYEE' as any) login(name, 'EMPLOYEE');
     else login(name, 'CUSTOMER', phone);
   };
 
@@ -61,6 +62,11 @@ export const Login: React.FC = () => {
             <button onClick={() => setMode('ADMIN')} className="group bg-red-600 p-8 rounded-[3.5rem] text-white shadow-2xl flex flex-col items-center gap-6 hover:bg-red-700 transition-all">
               <div className="w-16 h-16 bg-white/20 text-white rounded-[1.5rem] flex items-center justify-center group-hover:scale-110 transition-transform"><ShieldCheck size={32} /></div>
               <div className="text-center"><h3 className="text-xl font-black">الإدارة العامة</h3><p className="text-[10px] text-white/60 mt-2 font-black uppercase tracking-widest">هيكل المؤسسة</p></div>
+            </button>
+
+            <button onClick={() => setMode('EMPLOYEE' as any)} className="group bg-slate-900 p-8 rounded-[3.5rem] border-2 border-white/5 hover:border-red-600 transition-all shadow-2xl flex flex-col items-center gap-6">
+              <div className="w-16 h-16 bg-slate-800 text-red-500 rounded-[1.5rem] flex items-center justify-center group-hover:scale-110 transition-transform"><User size={32} /></div>
+              <div className="text-center"><h3 className="text-xl font-black text-white">بوابة الموظف</h3><p className="text-[10px] text-slate-500 mt-2 font-black uppercase tracking-widest">ملفي الشخصي</p></div>
             </button>
 
             <button onClick={() => setMode('CUSTOMER')} className="group bg-slate-900 p-8 rounded-[3.5rem] border-2 border-white/5 hover:border-red-600 transition-all shadow-2xl flex flex-col items-center gap-6">

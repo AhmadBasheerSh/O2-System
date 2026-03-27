@@ -15,14 +15,16 @@ import { BranchManagerPortal } from './components/BranchManagerPortal';
 import { DepartmentView } from './components/DepartmentView';
 import { OrderAggregatorDashboard } from './components/OrderAggregatorDashboard';
 import { ShelfGridView } from './components/ShelfGridView';
+import { FinancePortal } from './components/FinancePortal';
+import { EmployeeDashboard } from './components/EmployeeDashboard';
 
 const Main: React.FC = () => {
   const { currentUser, currentShift, userRole, editingOrderId } = useApp();
   const [activeView, setActiveView] = useState('pos');
 
   useEffect(() => {
-    if (userRole === 'ADMIN') {
-      setActiveView('org');
+    if (userRole === 'ADMIN' || userRole === 'FINANCE') {
+      setActiveView('finance_dashboard');
     } else if (userRole === 'BRANCH_MANAGER') {
       setActiveView('branch_dashboard');
     } else if (userRole === 'HOSPITALITY') {
@@ -31,13 +33,16 @@ const Main: React.FC = () => {
       setActiveView('dept_dashboard');
     } else if (userRole === 'ORDER_AGGREGATOR') {
       setActiveView('aggregator_dashboard');
+    } else if (userRole === 'EMPLOYEE') {
+      setActiveView('employee_dashboard');
+    } else if (userRole === 'CUSTOMER') {
+      setActiveView('customer_home');
     } else if (editingOrderId) {
       setActiveView('pos');
     }
   }, [userRole, editingOrderId]);
 
   if (!currentUser) return <Login />;
-  if (userRole === 'CUSTOMER') return <CustomerPortal />;
 
   const showContent = () => {
     const isAdmin = userRole === 'ADMIN';
@@ -47,7 +52,7 @@ const Main: React.FC = () => {
     const isAggregator = userRole === 'ORDER_AGGREGATOR';
 
     // Branch Managers, Super Admins, Hospitality, and Dept Staff bypass shift check
-    if (!currentShift && !isAdmin && !isBranchManager && !isHospitality && !isDeptStaff && !isAggregator && activeView !== 'shift') {
+    if (!currentShift && !isAdmin && !isBranchManager && !isHospitality && !isDeptStaff && !isAggregator && activeView !== 'shift' && userRole !== 'CUSTOMER' && userRole !== 'EMPLOYEE') {
       return (
         <div className="h-full flex flex-col items-center justify-center space-y-6 bg-white rounded-[3rem] shadow-sm">
           <div className="w-24 h-24 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 shadow-inner">
@@ -73,23 +78,46 @@ const Main: React.FC = () => {
       case 'pos': return <POS onViewTables={() => setActiveView('tables')} />;
       case 'tables': return <TablesView onSelect={() => setActiveView('pos')} />;
       case 'orders': return <OrdersView />;
-      case 'hospitality_tables': return <HospitalityView initialTab="tables" setActiveView={setActiveView} />;
+      case 'hospitality_tables': return <HospitalityView key="h_tables" initialTab="tables" setActiveView={setActiveView} />;
       case 'hospitality_pos': return <POS onViewTables={() => setActiveView('hospitality_tables')} />;
-      case 'hospitality_new_orders': return <HospitalityView initialTab="new_orders" setActiveView={setActiveView} />;
-      case 'hospitality_tracking': return <HospitalityView initialTab="tracking" setActiveView={setActiveView} />;
-      case 'hospitality_feedback': return <HospitalityView initialTab="feedback" setActiveView={setActiveView} />;
-      case 'hospitality_tasks': return <HospitalityView initialTab="tasks" setActiveView={setActiveView} />;
-      case 'dept_dashboard': return <DepartmentView initialView="DASHBOARD" />;
-      case 'dept_orders': return <DepartmentView initialView="ORDERS" />;
-      case 'departments': return <DepartmentView />;
+      case 'hospitality_new_orders': return <HospitalityView key="h_new" initialTab="new_orders" setActiveView={setActiveView} />;
+      case 'hospitality_tracking': return <HospitalityView key="h_track" initialTab="tracking" setActiveView={setActiveView} />;
+      case 'hospitality_feedback': return <HospitalityView key="h_feed" initialTab="feedback" setActiveView={setActiveView} />;
+      case 'hospitality_tasks': return <HospitalityView key="h_tasks" initialTab="tasks" setActiveView={setActiveView} />;
+      case 'dept_dashboard': return <DepartmentView key="d_dash" />;
+      case 'dept_orders': return <DepartmentView key="d_orders" initialView="ORDERS" />;
+      case 'departments': return <DepartmentView key="d_main" />;
       case 'aggregator_dashboard': return <OrderAggregatorDashboard />;
       case 'aggregator_shelves': return <ShelfGridView />;
+      case 'finance_dashboard': return <FinancePortal key="f_dash" initialView="DASHBOARD" />;
+      case 'finance_departments': return <FinancePortal key="f_depts" initialView="DEPARTMENTS" />;
+      case 'finance_menu': return <FinancePortal key="f_menu" initialView="MENU" />;
+      case 'finance_orders': return <FinancePortal key="f_orders" initialView="ORDERS" />;
+      case 'finance_customers': return <FinancePortal key="f_cust" initialView="CUSTOMERS" />;
+      case 'finance_suppliers': return <FinancePortal key="f_supp" initialView="SUPPLIERS" />;
+      case 'finance_employees': return <FinancePortal key="f_emp" initialView="EMPLOYEES" />;
+      case 'finance_accounting': return <FinancePortal key="f_acc" initialView="ACCOUNTING" />;
+      case 'finance_reports': return <FinancePortal key="f_rep" initialView="REPORTS" />;
+      case 'finance_audit': return <FinancePortal key="f_audit" initialView="AUDIT_LOG" />;
+      case 'finance_archive': return <FinancePortal key="f_arch" initialView="ARCHIVE" />;
+      case 'finance_settings': return <FinancePortal key="f_sett" initialView="SETTINGS" />;
       case 'finance': return <FinanceReports />;
       case 'shift': return <ShiftView />;
       case 'org': return <OrgStructure />;
       case 'branch_dashboard': return <BranchManagerPortal />;
       case 'branch_live': return <BranchManagerPortal />; // Shared for now
       case 'branch_orders': return <OrdersView />; // Reusable component
+      case 'customer_home': return <CustomerPortal key="c_home" initialTab="home" />;
+      case 'customer_menu': return <CustomerPortal key="c_menu" initialTab="menu" />;
+      case 'customer_orders': return <CustomerPortal key="c_orders" initialTab="orders" />;
+      case 'customer_wallet': return <CustomerPortal key="c_wallet" initialTab="wallet" />;
+      case 'customer_profile': return <CustomerPortal key="c_profile" initialTab="profile" />;
+      case 'employee_dashboard': return <EmployeeDashboard key="e_dash" initialTab="DASHBOARD" />;
+      case 'employee_personal': return <EmployeeDashboard key="e_pers" initialTab="PERSONAL" />;
+      case 'employee_shift': return <EmployeeDashboard key="e_shift" initialTab="SHIFT" />;
+      case 'employee_timesheet': return <EmployeeDashboard key="e_time" initialTab="TIMESHEET" />;
+      case 'employee_finance': return <EmployeeDashboard key="e_fin" initialTab="FINANCE" />;
+      case 'employee_policies': return <EmployeeDashboard key="e_pol" initialTab="POLICIES" />;
       default: return <div className="p-10 text-center text-slate-400 font-bold">هذه الخاصية قيد التطوير</div>;
     }
   };

@@ -126,46 +126,46 @@ export const DepartmentView: React.FC<{ initialView?: 'DASHBOARD' | 'ORDERS' }> 
     <div className="h-full flex flex-col space-y-6 bg-slate-950 p-4 sm:p-6 lg:p-8 rounded-[3rem] overflow-hidden border border-white/5 shadow-2xl">
       {/* Header */}
       <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-900/20 rotate-3">
-            <ChefHat size={32} />
-          </div>
-          <div>
-            <h2 className="text-3xl font-black text-white tracking-tight">
-              لوحة تحكم {departments.find(d => d.id === selectedDeptId)?.name || 'القسم'}
-            </h2>
-            <div className="flex items-center gap-2 text-slate-500 font-bold text-xs mt-1">
-              <span className="flex items-center gap-1"><Users size={12} /> {currentUser?.name}</span>
-              <span className="w-1 h-1 bg-slate-700 rounded-full" />
-              <span className="flex items-center gap-1"><Clock size={12} /> {currentTime.toLocaleTimeString('ar-PS')}</span>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-red-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-red-900/20 rotate-3">
+              <ChefHat size={32} />
+            </div>
+            <div>
+              <h2 className="text-3xl font-black text-white tracking-tight">
+                لوحة تحكم {departments.find(d => d.id === selectedDeptId)?.name || 'القسم'}
+              </h2>
+              <div className="flex items-center gap-2 text-slate-500 font-bold text-xs mt-1">
+                <span className="flex items-center gap-1"><Users size={12} /> {currentUser?.name}</span>
+                <span className="w-1 h-1 bg-slate-700 rounded-full" />
+                <span className="flex items-center gap-1"><Clock size={12} /> {currentTime.toLocaleTimeString('ar-PS')}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-4 w-full lg:w-auto">
-          {!isDeptStaff && (
-            <div className="flex bg-slate-900 p-1 rounded-2xl border border-white/5 shadow-xl overflow-x-auto scrollbar-hide max-w-md">
-              {departments.map(dept => (
-                <button 
-                  key={dept.id}
-                  onClick={() => setSelectedDeptId(dept.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] transition-all whitespace-nowrap ${selectedDeptId === dept.id ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                  <span>{dept.id === 'd-italian' ? '🇮🇹' : dept.id === 'd-bar' ? '🍹' : dept.id === 'd-grills' ? '🔥' : dept.id === 'd-fastfood' ? '⚡' : '🍰'}</span> {dept.name}
-                </button>
-              ))}
-            </div>
-          )}
-          
-          <div className="flex gap-2">
-            <button className="p-3 rounded-2xl bg-slate-900 border border-white/5 text-slate-400 hover:text-white transition-all"><Bell size={20} /></button>
-            <button className="p-3 rounded-2xl bg-slate-900 border border-white/5 text-slate-400 hover:text-white transition-all"><Settings size={20} /></button>
-            {isDeptStaff && (
-              <button onClick={logout} className="p-3 rounded-2xl bg-red-600/10 border border-red-600/20 text-red-500 hover:bg-red-600 hover:text-white transition-all"><LogOut size={20} /></button>
+          <div className="flex items-center gap-4 w-full lg:w-auto">
+            {!isDeptStaff && (
+              <div className="flex bg-slate-900 p-1 rounded-2xl border border-white/5 shadow-xl overflow-x-auto scrollbar-hide max-w-md">
+                {departments.map(dept => (
+                  <button 
+                    key={dept.id}
+                    onClick={() => setSelectedDeptId(dept.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] transition-all whitespace-nowrap ${selectedDeptId === dept.id ? 'bg-red-600 text-white shadow-lg shadow-red-900/20' : 'text-slate-400 hover:text-slate-300'}`}
+                  >
+                    <span>{dept.id === 'd-italian' ? '🇮🇹' : dept.id === 'd-bar' ? '🍹' : dept.id === 'd-grills' ? '🔥' : dept.id === 'd-fastfood' ? '⚡' : '🍰'}</span> {dept.name}
+                  </button>
+                ))}
+              </div>
             )}
+            
+            <div className="flex gap-2">
+              <button className="p-3 rounded-2xl bg-slate-900 border border-white/5 text-slate-400 hover:text-white transition-all"><Bell size={20} /></button>
+              <button className="p-3 rounded-2xl bg-slate-900 border border-white/5 text-slate-400 hover:text-white transition-all"><Settings size={20} /></button>
+              {isDeptStaff && (
+                <button onClick={logout} className="p-3 rounded-2xl bg-red-600/10 border border-red-600/20 text-red-500 hover:bg-red-600 hover:text-white transition-all"><LogOut size={20} /></button>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
       {/* Navigation Tabs - Removed as they are now in the sidebar */}
 

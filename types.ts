@@ -13,6 +13,7 @@ export enum OrderStatus {
   DELIVERED = 'DELIVERED',
   CANCELED = 'CANCELED',
   REFUNDED = 'REFUNDED',
+  COMPLETED = 'COMPLETED',
   IN_PROGRESS = 'IN_PROGRESS',
   PENDING_CONFIRMATION = 'PENDING_CONFIRMATION',
   CONFIRMED = 'CONFIRMED',
@@ -47,15 +48,37 @@ export interface MenuItem {
   id: string;
   name: string;
   nameAr: string;
-  price: number;
+  shortName?: string;
+  code: string; // SKU
+  price: number; // Base price
+  dineInPrice?: number;
+  takeawayPrice?: number;
+  deliveryPrice?: number;
+  offerPrice?: number;
+  offerStartDate?: Date;
+  offerEndDate?: Date;
   category: string;
   image: string;
+  description?: string;
   descriptionAr?: string;
+  prepTime: number; // in minutes
+  status: 'AVAILABLE' | 'UNAVAILABLE' | 'OUT_OF_STOCK';
+  displayOrder: number;
+  requiresKitchen: boolean;
+  barcode?: string;
+  kitchenNotes?: string;
   popular?: boolean;
+  chefRecommended?: boolean;
+  seasonal?: { startDate: Date; endDate: Date };
+  visibility: { pos: boolean; qrMenu: boolean; delivery: boolean };
   dietary?: { vegan?: boolean; glutenFree?: boolean; spicyLevel?: number };
-  sizes?: { name: string; price: number }[];
-  addons?: { name: string; price: number }[];
-  departmentId?: string;
+  sizes?: { id: string; name: string; price: number }[];
+  addons?: { id: string; name: string; price: number; maxQuantity?: number }[];
+  removals?: string[]; // Ingredients that can be removed
+  isCombo?: boolean;
+  comboItems?: { itemId: string; quantity: number }[];
+  departmentId: string; // Required
+  stats?: { salesCount: number; totalRevenue: number; lastSoldAt?: Date };
 }
 
 export interface OrderItem {
@@ -76,6 +99,7 @@ export interface OrderItem {
 export interface OrderTimeline {
   status: OrderStatus;
   time: Date;
+  note?: string;
 }
 
 export interface Order {
@@ -106,6 +130,9 @@ export interface Order {
     eta: string;
   };
   shelfLocation?: string;
+  cancelReason?: string;
+  refundedAmount?: number;
+  guestCount?: number;
 }
 
 export interface Branch {
@@ -120,9 +147,32 @@ export interface Branch {
 export interface Department {
   id: string;
   name: string;
+  nameAr: string;
+  shortName?: string;
+  description?: string;
   parentId?: string;
   branchId: string;
-  description?: string;
+  icon?: string;
+  color?: string;
+  stationNumber?: string;
+  location?: string;
+  hasKds: boolean;
+  kdsScreenId?: string;
+  kdsDeviceName?: string;
+  defaultPrepTime: number; // in minutes
+  type: 'MAIN_KITCHEN' | 'FAST_FOOD' | 'BAR' | 'COLD_PREP' | 'BAKERY' | 'DESSERT';
+  displayOrder: number;
+  status: 'ACTIVE' | 'INACTIVE' | 'BUSY';
+  maxConcurrentOrders: number;
+  priority: number;
+  autoPrintTicket: boolean;
+  notifications: {
+    sound: boolean;
+    flash: boolean;
+    push: boolean;
+  };
+  orderTypeVisibility: OrderType[];
+  requiresAssembly: boolean;
 }
 
 export interface JobTitle {
@@ -138,14 +188,24 @@ export interface JobType {
   description?: string;
 }
 
+export enum EmployeeStatus {
+  ACTIVE = 'ACTIVE',
+  ON_LEAVE = 'ON_LEAVE',
+  TERMINATED = 'TERMINATED',
+  SUSPENDED = 'SUSPENDED',
+  RESIGNED = 'RESIGNED'
+}
+
 export interface Employee {
   id: string;
+  employeeId: string; // EMP-102
   name: string;
   phone: string;
   email: string;
   address: string;
   nationalId: string;
   dob: Date;
+  image?: string;
   jobTitleId: string;
   departmentId: string;
   branchId: string;
@@ -153,15 +213,63 @@ export interface Employee {
   managerId?: string;
   hireDate: Date;
   salary: number;
-  status: 'ACTIVE' | 'ON_LEAVE' | 'TERMINATED';
-  role: 'CASHIER' | 'WAITER' | 'MANAGER' | 'ADMIN' | 'BRANCH_MANAGER' | 'HOSPITALITY' | 'KITCHEN' | 'DEPARTMENT_STAFF' | 'ORDER_AGGREGATOR';
+  status: EmployeeStatus;
+  role: 'CASHIER' | 'WAITER' | 'MANAGER' | 'ADMIN' | 'BRANCH_MANAGER' | 'HOSPITALITY' | 'KITCHEN' | 'DEPARTMENT_STAFF' | 'ORDER_AGGREGATOR' | 'FINANCE' | 'HEAD_CHEF' | 'COOK';
+  username?: string;
+  password?: string;
+  pin?: string; // 4 digits
+  permissions: string[];
+  notes?: string;
+  rating?: number;
+  performance?: {
+    ordersServed: number;
+    totalSales: number;
+    hoursWorked: number;
+  };
+}
+
+export enum CustomerType {
+  REGULAR = 'REGULAR',
+  LOYAL = 'LOYAL',
+  VIP = 'VIP',
+  COMPANY = 'COMPANY',
+  EMPLOYEE = 'EMPLOYEE',
+  SUPPLIER = 'SUPPLIER'
+}
+
+export interface CustomerAddress {
+  id: string;
+  label: string; // Home, Work, etc.
+  city: string;
+  district: string;
+  street: string;
+  notes?: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  type: CustomerType;
+  points: number;
+  totalSpent: number;
+  ordersCount: number;
+  balance: number; // For credit
+  allowCredit: boolean;
+  isBlocked: boolean;
+  addresses: CustomerAddress[];
+  rating: number;
+  notes?: string;
+  lastVisit?: Date;
+  createdAt: Date;
 }
 
 export interface User {
   id: string;
   name: string;
   phone: string;
-  role: 'CASHIER' | 'CUSTOMER' | 'WAITER' | 'BRANCH_MANAGER' | 'HOSPITALITY' | 'KITCHEN' | 'DEPARTMENT_STAFF' | 'ORDER_AGGREGATOR';
+  role: 'CASHIER' | 'CUSTOMER' | 'WAITER' | 'BRANCH_MANAGER' | 'HOSPITALITY' | 'KITCHEN' | 'DEPARTMENT_STAFF' | 'ORDER_AGGREGATOR' | 'FINANCE' | 'ADMIN' | 'HEAD_CHEF' | 'COOK';
   branchId?: string;
   departmentId?: string;
   points: number;
@@ -205,8 +313,10 @@ export interface Table {
 }
 
 export enum FinancialTransactionType {
-  WITHDRAWAL = 'WITHDRAWAL', // سحوبات (مصاريف)
-  DEPOSIT = 'DEPOSIT',       // توريد (زيادة رصيد)
+  SALE = 'SALE',             // مبيعات
+  EXPENSE = 'EXPENSE',       // مصروفات
+  WITHDRAWAL = 'WITHDRAWAL', // سحوبات (مدير)
+  DEPOSIT = 'DEPOSIT',       // إيداع (توريد)
   REFUND = 'REFUND',         // مرتجع
   CASH_DROP = 'CASH_DROP',   // توريد للبنك/الإدارة
   VOID = 'VOID'              // إلغاء فاتورة
@@ -257,6 +367,42 @@ export interface Shift {
   id: string;
   cashierId: string;
   startTime: Date;
+  endTime?: Date;
   openingBalance: number;
+  closingBalance?: number;
+  expectedBalance?: number;
+  totalSales?: number;
+  totalExpenses?: number;
+  totalWithdrawals?: number;
   status: 'OPEN' | 'CLOSED';
+  type: 'MORNING' | 'EVENING' | 'NIGHT';
+}
+
+export interface Attendance {
+  id: string;
+  employeeId: string;
+  date: Date;
+  checkIn: Date;
+  checkOut?: Date;
+  status: 'PRESENT' | 'LATE' | 'ABSENT';
+  note?: string;
+}
+
+export interface WorkSchedule {
+  id: string;
+  employeeId: string;
+  branchId: string;
+  departmentId: string;
+  shiftId: string;
+  dayOfWeek: number; // 0-6 (Sunday-Saturday)
+  startTime: string; // "08:00"
+  endTime: string;   // "16:00"
+}
+
+export interface ActivityLog {
+  id: string;
+  employeeId: string;
+  action: string; // "Created Order #1025"
+  timestamp: Date;
+  details?: any;
 }

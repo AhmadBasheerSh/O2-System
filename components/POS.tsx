@@ -1,30 +1,68 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../store';
 import { MENU_ITEMS, CATEGORIES } from '../constants';
-import { OrderType, OrderStatus, PaymentMethod } from '../types';
-import { Search, Plus, Minus, ShoppingCart, Trash2, CreditCard, Save, CheckCircle, Tag, Wallet, Banknote, FileText, Filter } from 'lucide-react';
+import { OrderType, OrderStatus, PaymentMethod, Customer, CustomerType } from '../types';
+import { 
+  Search, Plus, Minus, ShoppingCart, Trash2, CreditCard, Save, CheckCircle, Tag, Wallet, Banknote, FileText, Filter,
+  X, ChevronRight, AlertCircle, UserPlus, Phone, MapPin
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) => {
   const { 
     addToCart, currentCart, cartOrderType, setOrderType, 
     updateCartItem, removeFromCart, submitOrder, selectedTable, setSelectedTable, tables, editingOrderId, clearCart,
-    currentUser, userRole
+    currentUser, userRole, customers, addCustomer, employees
   } = useApp();
   
   const isHospitality = userRole === 'HOSPITALITY';
-  
   const [activePOSMode, setActivePOSMode] = useState<'menu' | 'info' | 'customer'>('menu');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
+  
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showQuickAddCustomer, setShowQuickAddCustomer] = useState(false);
+  const [quickCustomerName, setQuickCustomerName] = useState('');
+  const [quickCustomerPhone, setQuickCustomerPhone] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [posError, setPosError] = useState<string | null>(null);
   const [invoiceNote, setInvoiceNote] = useState('');
   const [accountType, setAccountType] = useState<'ACCOUNT' | 'SUPPLIER' | 'EMPLOYEE'>('ACCOUNT');
   const [accountNumber, setAccountNumber] = useState('');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
 
-  const { employees } = useApp();
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
+  const filteredCustomers = useMemo(() => {
+    if (!customerSearchQuery) return [];
+    return customers.filter(c => 
+      c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || 
+      c.phone.includes(customerSearchQuery)
+    );
+  }, [customers, customerSearchQuery]);
+
+  const handleSelectCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerName(customer.name);
+    setCustomerPhone(customer.phone);
+    setShowSearchModal(false);
+    setCustomerSearchQuery('');
+  };
+
+  const handleQuickAddCustomer = () => {
+    if (!quickCustomerName || !quickCustomerPhone) return;
+    addCustomer({
+      name: quickCustomerName,
+      phone: quickCustomerPhone,
+      type: CustomerType.REGULAR,
+      allowCredit: false,
+      notes: ''
+    });
+    setShowQuickAddCustomer(false);
+    setQuickCustomerName('');
+    setQuickCustomerPhone('');
+  };
 
   useEffect(() => {
     if (paymentMethod === PaymentMethod.CASH) {
@@ -57,12 +95,36 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
     }
   }, [isHospitality]);
 
+  useEffect(() => {
+    if (posError) {
+      const timer = setTimeout(() => setPosError(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [posError]);
+
+  const getItemCurrentPrice = (item: any) => {
+    let price = item.price;
+    if (cartOrderType === OrderType.DINE_IN && item.dineInPrice) price = item.dineInPrice;
+    else if (cartOrderType === OrderType.TAKEAWAY && item.takeawayPrice) price = item.takeawayPrice;
+    else if (cartOrderType === OrderType.DELIVERY && item.deliveryPrice) price = item.deliveryPrice;
+    
+    if (item.offerPrice && item.offerStartDate && item.offerEndDate) {
+      const now = new Date();
+      const start = new Date(item.offerStartDate);
+      const end = new Date(item.offerEndDate);
+      if (now >= start && now <= end) {
+        price = item.offerPrice;
+      }
+    }
+    return price;
+  };
+
   const handleQuickIdChange = (id: string) => {
     setQuickId(id);
     const item = MENU_ITEMS.find(i => i.id === id);
     if (item) {
       setQuickQty('1');
-      setQuickTotal(item.price.toString());
+      setQuickTotal(getItemCurrentPrice(item).toString());
     } else {
       setQuickQty('');
       setQuickTotal('');
@@ -74,7 +136,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
     const item = MENU_ITEMS.find(i => i.id === quickId);
     if (item && qtyStr) {
       const qty = parseFloat(qtyStr) || 0;
-      setQuickTotal((qty * item.price).toFixed(2));
+      setQuickTotal((qty * getItemCurrentPrice(item)).toFixed(2));
     }
   };
 
@@ -83,7 +145,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
     const item = MENU_ITEMS.find(i => i.id === quickId);
     if (item && totalStr) {
       const totalVal = parseFloat(totalStr) || 0;
-      setQuickQty((totalVal / item.price).toFixed(2));
+      setQuickQty((totalVal / getItemCurrentPrice(item)).toFixed(2));
     }
   };
 
@@ -92,7 +154,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
     if (!item) return;
     
     const qty = parseFloat(quickQty) || 1;
-    const price = item.price; // Use base price, total is calculated in cart
+    const price = getItemCurrentPrice(item);
     
     addToCart(item, { quantity: qty, price: price });
     setQuickId('');
@@ -162,6 +224,19 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-full bg-slate-950 overflow-y-auto lg:overflow-hidden p-2 sm:p-4 lg:p-0 custom-scrollbar relative">
+      <AnimatePresence>
+        {posError && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-10 left-1/2 -translate-x-1/2 z-[200] bg-red-600 text-white px-8 py-4 rounded-2xl font-black shadow-2xl flex items-center gap-3 border border-red-500/50"
+          >
+            <AlertCircle size={20} />
+            {posError}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Menu Area */}
       <div className={`flex-1 flex flex-col min-w-0 h-full ${isCartOpen ? 'hidden lg:flex' : 'flex'}`}>
         <header className="mb-4 bg-slate-900 p-4 sm:p-6 rounded-3xl border border-white/5 shadow-xl space-y-6">
@@ -309,7 +384,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                         </h4>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-red-500">{item.price} ₪</span>
+                        <span className="text-xs font-black text-red-500">{getItemCurrentPrice(item)} ₪</span>
                       </div>
                     </div>
                   </motion.div>
@@ -356,17 +431,34 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
               <div className="max-w-3xl mx-auto space-y-12">
                 {/* Customer Section */}
                 <div className="space-y-6">
-                  <h4 className="text-base sm:text-lg font-black text-white border-b border-white/5 pb-3">بيانات الزبون</h4>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                    <h4 className="text-base sm:text-lg font-black text-white">بيانات الزبون</h4>
+                    <button 
+                      onClick={() => setShowSearchModal(true)}
+                      className="text-xs font-bold text-red-500 hover:underline flex items-center gap-1"
+                    >
+                      <Search size={14} />
+                      بحث عن عميل مسجل
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">اسم الزبون</label>
-                      <input 
-                        type="text" 
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        placeholder="أدخل اسم الزبون..."
-                        className="w-full p-3 sm:p-4 bg-slate-800 border border-white/5 rounded-2xl outline-none focus:ring-2 focus:ring-red-600 font-black text-xs sm:text-sm text-white transition-all"
-                      />
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          placeholder="أدخل اسم الزبون..."
+                          className="w-full p-3 sm:p-4 bg-slate-800 border border-white/5 rounded-2xl outline-none focus:ring-2 focus:ring-red-600 font-black text-xs sm:text-sm text-white transition-all"
+                        />
+                        {selectedCustomer && (
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-red-500/20 text-red-500 px-2 py-1 rounded-lg text-[10px] font-bold">
+                            <Tag size={10} />
+                            {selectedCustomer.type}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">رقم الجوال</label>
@@ -379,6 +471,12 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                       />
                     </div>
                   </div>
+                  {selectedCustomer?.notes && (
+                    <div className="bg-amber-500/10 p-3 rounded-xl border border-amber-500/20 flex items-center gap-2 text-amber-500">
+                      <AlertCircle size={14} />
+                      <p className="text-[10px] font-bold">ملاحظة: {selectedCustomer.notes}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Account Section */}
@@ -511,7 +609,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                       <td className="p-2 sm:p-3">
                         <p className="text-[10px] sm:text-xs font-black text-white">{item.name}</p>
                       </td>
-                      <td className="p-2 sm:p-3 text-center text-[10px] sm:text-xs font-bold text-slate-400">{item.price}</td>
+                      <td className="p-2 sm:p-3 text-center text-[10px] sm:text-xs font-bold text-slate-400">{getItemCurrentPrice(item)}</td>
                       <td className="p-2 sm:p-3">
                         <input 
                           type="text"
@@ -592,7 +690,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
               <button 
                 onClick={() => {
                   if (cartOrderType === OrderType.DINE_IN && !manualTable) {
-                    alert('يرجى إدخال رقم الطاولة أولاً');
+                    setPosError('يرجى إدخال رقم الطاولة أولاً');
                     return;
                   }
                   submitOrder(OrderStatus.CONFIRMED, PaymentMethod.CASH, 0, { name: customerName, phone: customerPhone, note: invoiceNote });
@@ -608,7 +706,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                 <button 
                   onClick={() => {
                     if (cartOrderType === OrderType.DINE_IN && !manualTable) {
-                      alert('يرجى إدخال رقم الطاولة أولاً');
+                      setPosError('يرجى إدخال رقم الطاولة أولاً');
                       return;
                     }
                     submitOrder(OrderStatus.PENDING, paymentMethod, 0, { name: customerName, phone: customerPhone, note: invoiceNote });
@@ -622,7 +720,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                 <button 
                   onClick={() => {
                     if (cartOrderType === OrderType.DINE_IN && !manualTable) {
-                      alert('يرجى إدخال رقم الطاولة أولاً');
+                      setPosError('يرجى إدخال رقم الطاولة أولاً');
                       return;
                     }
                     if (!customerName || (customerName === 'صندوق مبيعات' && paymentMethod !== PaymentMethod.CASH)) {
@@ -654,7 +752,123 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
         </button>
       )}
 
-      {/* Customer Name Modal */}
+      {/* Customer Selection Modal */}
+      <AnimatePresence>
+        {showSearchModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">البحث عن عميل</h2>
+                <button onClick={() => setShowSearchModal(false)} className="text-slate-400 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4 flex-1 overflow-hidden flex flex-col">
+                <div className="relative">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="ابحث بالاسم أو رقم الهاتف..."
+                    value={customerSearchQuery}
+                    onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                    className="w-full bg-slate-800 border border-white/5 rounded-xl py-3 pr-10 pl-4 text-white focus:outline-none focus:border-red-500/50"
+                  />
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2">
+                  {filteredCustomers.length > 0 ? filteredCustomers.map(c => (
+                    <button 
+                      key={c.id}
+                      onClick={() => handleSelectCustomer(c)}
+                      className="w-full bg-slate-800/50 hover:bg-slate-800 p-4 rounded-2xl border border-white/5 flex items-center justify-between group transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center text-red-500 font-bold">
+                          {c.name.charAt(0)}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-white group-hover:text-red-500 transition-colors">{c.name}</p>
+                          <p className="text-[10px] text-slate-500">{c.phone}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded">{c.points} نقطة</span>
+                        <ChevronRight size={16} className="text-slate-600" />
+                      </div>
+                    </button>
+                  )) : customerSearchQuery && (
+                    <div className="text-center py-8">
+                      <p className="text-slate-500 text-sm mb-4">لا يوجد نتائج لهذا البحث</p>
+                      <button 
+                        onClick={() => {
+                          setQuickCustomerName(customerSearchQuery);
+                          setShowQuickAddCustomer(true);
+                        }}
+                        className="bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold"
+                      >
+                        إضافة كعميل جديد سريع
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Quick Add Customer Modal */}
+      <AnimatePresence>
+        {showQuickAddCustomer && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 border border-white/10 rounded-3xl w-full max-w-sm overflow-hidden"
+            >
+              <div className="p-6 border-b border-white/5 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white">إضافة عميل سريع</h2>
+                <button onClick={() => setShowQuickAddCustomer(false)} className="text-slate-400 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-500 uppercase font-bold">الاسم</label>
+                  <input 
+                    type="text" 
+                    value={quickCustomerName}
+                    onChange={(e) => setQuickCustomerName(e.target.value)}
+                    className="w-full bg-slate-800 border border-white/5 rounded-xl py-2 px-4 text-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-500 uppercase font-bold">رقم الهاتف</label>
+                  <input 
+                    type="text" 
+                    value={quickCustomerPhone}
+                    onChange={(e) => setQuickCustomerPhone(e.target.value)}
+                    className="w-full bg-slate-800 border border-white/5 rounded-xl py-2 px-4 text-white"
+                  />
+                </div>
+                <button 
+                  onClick={handleQuickAddCustomer}
+                  className="w-full bg-red-600 text-white py-3 rounded-xl font-bold"
+                >
+                  حفظ العميل
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {showCustomerModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -690,7 +904,7 @@ export const POS: React.FC<{ onViewTables: () => void }> = ({ onViewTables }) =>
                 <button 
                   onClick={() => {
                     if (!customerName || customerName.trim() === '') {
-                      alert('يرجى إدخال اسم الزبون');
+                      setPosError('يرجى إدخال اسم الزبون');
                       return;
                     }
                     submitOrder(OrderStatus.DELIVERED, paymentMethod, 0, { name: customerName, phone: customerPhone, note: invoiceNote });

@@ -12,14 +12,14 @@ import {
   ChevronRight, RefreshCcw, Timer, FileText, Calendar, AlertCircle, Smartphone, Power
 } from 'lucide-react';
 
-export const CustomerPortal: React.FC = () => {
+export const CustomerPortal: React.FC<{ initialTab?: 'home' | 'menu' | 'orders' | 'wallet' | 'profile' }> = ({ initialTab = 'home' }) => {
   const { 
     currentUser, addToCart, currentCart, removeFromCart, updateCartQuantity, 
     submitOrder, activeOrders, toggleFavorite, depositToWallet, cartOrderType, setOrderType, reorder,
     tables, setSelectedTable, selectedTable, logout
   } = useApp();
   
-  const [activeTab, setActiveTab] = useState<'home' | 'menu' | 'orders' | 'wallet' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'menu' | 'orders' | 'wallet' | 'profile'>(initialTab);
   const [ordersSubTab, setOrdersSubTab] = useState<'active' | 'history'>('active');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedItemDetails, setSelectedItemDetails] = useState<MenuItem | null>(null);
@@ -64,12 +64,8 @@ export const CustomerPortal: React.FC = () => {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (currentCart.length > prevCartLength.current) {
-      setCartAnimate(true);
-      setTimeout(() => setCartAnimate(false), 1000);
-    }
-    prevCartLength.current = currentCart.length;
-  }, [currentCart.length]);
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const cartCount = currentCart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = currentCart.reduce((s, i) => s + (i.price * i.quantity), 0);
@@ -135,7 +131,7 @@ export const CustomerPortal: React.FC = () => {
     setIsTyping(true);
     try {
       const menuContext = MENU_ITEMS.map(i => `${i.nameAr} (${i.price}₪)`).join(', ');
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
@@ -559,34 +555,7 @@ export const CustomerPortal: React.FC = () => {
   );
 
   return (
-    <div className="flex h-screen bg-slate-950 overflow-hidden text-slate-100" dir="rtl">
-      {/* Side Navigation (Desktop) */}
-      <aside className="hidden lg:flex w-72 bg-slate-900 border-l border-white/5 flex-col p-8 z-20">
-        <div className="mb-14 flex items-center gap-3">
-          <div className="w-12 h-12 bg-red-600 rounded-[1.2rem] flex items-center justify-center text-white font-black text-2xl shadow-xl shadow-red-900/20">R</div>
-          <h1 className="text-2xl font-black text-white tracking-tight">RestoMaster</h1>
-        </div>
-        <nav className="flex-1 space-y-3">
-          {[
-            { id: 'home', label: 'الرئيسية', icon: Home },
-            { id: 'menu', label: 'قائمة الطعام', icon: ShoppingBag },
-            { id: 'orders', label: 'طلباتي', icon: History },
-            { id: 'wallet', label: 'المحفظة', icon: Wallet },
-            { id: 'profile', label: 'الملف الشخصي', icon: User },
-          ].map(item => (
-            <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`w-full flex items-center gap-4 px-6 py-4 rounded-[1.4rem] font-black text-sm transition-all ${activeTab === item.id ? 'bg-red-600 text-white shadow-xl shadow-red-900/20' : 'text-slate-500 hover:bg-slate-800 hover:text-slate-100'}`}><item.icon size={22} /> {item.label}</button>
-          ))}
-        </nav>
-        <div className="mt-auto pt-6 border-t border-white/5">
-          <button 
-            onClick={logout}
-            className="w-full flex items-center gap-4 px-6 py-4 rounded-[1.4rem] font-black text-sm text-red-500 hover:bg-red-500/10 transition-all"
-          >
-            <Power size={22} /> تسجيل الخروج
-          </button>
-        </div>
-      </aside>
-
+    <div className="min-h-full bg-slate-950 text-slate-100 font-['Tajawal']" dir="rtl">
       <main className="flex-1 overflow-auto relative pb-24 lg:pb-0 custom-scrollbar">
         {activeTab === 'home' && renderHome()}
         {activeTab === 'menu' && renderMenu()}
@@ -604,18 +573,6 @@ export const CustomerPortal: React.FC = () => {
             {cartCount > 0 && <span className="absolute -top-1 -right-1 bg-white text-red-600 text-[10px] font-black w-7 h-7 rounded-full flex items-center justify-center border-2 border-slate-950 shadow-lg">{cartCount}</span>}
           </button>
         </div>
-
-        {/* Bottom Nav (Mobile) */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur-2xl border-t border-white/5 flex justify-around py-5 z-40 shadow-2xl px-6">
-          {[
-            { id: 'home', icon: Home, label: 'الرئيسية' },
-            { id: 'menu', icon: ShoppingBag, label: 'المنيو' },
-            { id: 'orders', icon: History, label: 'طلباتي' },
-            { id: 'wallet', icon: Wallet, label: 'المحفظة' }
-          ].map(n => (
-            <button key={n.id} onClick={() => setActiveTab(n.id as any)} className={`flex flex-col items-center gap-1.5 transition-all ${activeTab === n.id ? 'text-red-500 scale-110' : 'text-slate-500'}`}><n.icon size={24} /><span className="text-[10px] font-black">{n.label}</span></button>
-          ))}
-        </nav>
       </main>
 
       {/* Cart Drawer */}
